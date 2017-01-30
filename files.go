@@ -8,13 +8,28 @@ import (
 )
 
 type fakefile struct {
-	name   string
-	offset int64
-	v      *FileHandler
+	name    string
+	offset  int64
+	client  string
+	handler ClientHandler
+}
+
+func (f *fakefile) ReadAt(p []byte, off int64) (int, error) {
+	c, err := f.handler.ReadFile(f.name)
+	if err != nil {
+		return 0, err
+	}
+	n := copy(p, c[off:])
+	return n, err
+}
+
+func (f *fakefile) WriteAt(p []byte, off int64) (int, error) {
+	err := f.handler.WriteFile(f.name, p, 0666)
+	return 0, err
 }
 
 func (f *fakefile) Close() error {
-	return nil
+	return f.handler.CloseFile(f.name)
 }
 
 func (f *fakefile) size() int64 {

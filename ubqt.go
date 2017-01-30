@@ -8,10 +8,10 @@ import (
 	"aqwari.net/net/styx"
 )
 
-// FileHandler must be implemented by any program wishing to use this library
-type FileHandler interface {
-	ReadFile(filename string) ([]byte, error)
+// ClientHandler must be satisfied to use this library
+type ClientHandler interface {
 	WriteFile(filename string, data []byte, perm os.FileMode) error
+	ReadFile(filename string) ([]byte, error)
 	CloseFile(filename string) error
 }
 
@@ -50,7 +50,7 @@ func (u *Srv) Verbose() {
 }
 
 // Loop - Starts up ListenAndServe instance of 9p with our settings
-func (u *Srv) Loop(f *FileHandler) error {
+func (u *Srv) Loop(client ClientHandler) error {
 	log := styx.HandlerFunc(func(s *styx.Session) {
 		for s.Next() {
 			if u.verbose {
@@ -64,7 +64,7 @@ func (u *Srv) Loop(f *FileHandler) error {
 		for s.Next() {
 			t := s.Request()
 			name := path.Base(t.Path())
-			fi := &stat{name: name, file: &fakefile{v: f, name: name}}
+			fi := &stat{name: name, file: &fakefile{name: name, handler: client}}
 			//TODO: e := &Event{Filename: name, client: s.User}
 			switch t := t.(type) {
 			case styx.Twalk:
