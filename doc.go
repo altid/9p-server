@@ -1,2 +1,4 @@
-//TODO: Top level documentation goes here, see https://github.com/droyo/styx/blob/master/doc.go for example
+/*
+Package ubqtlib is a simple wrapper around https://aqwari.net/net/styx
+*/
 package ubqtlib
