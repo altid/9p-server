@@ -14,17 +14,17 @@ type fakefile struct {
 	handler ClientHandler
 }
 
-func (f *fakefile) Read(p []byte) (int, error) {
+func (f *fakefile) ReadAt(p []byte, off int64) (int, error) {
 	c, err := f.handler.ReadFile(f.name)
 	if err != nil {
 		return 0, err
 	}
-	n := copy(p, c)
+	n := copy(p, c[off:])
 	return n, err
 }
 
-func (f *fakefile) Write(p []byte) (int, error) {
-	err := f.handler.WriteFile(f.name, p, 0644)
+func (f *fakefile) WriteAt(p []byte, off int64) (int, error) {
+	err := f.handler.WriteFile(f.name, p[off:], 0666)
 	return 0, err
 }
 
