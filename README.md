@@ -1,8 +1,5 @@
-#ubqt-irc
---------
+#srv-lib
+============
 
-Small go program to represent IRC over a 9p server
-
-**alpha stages**
-
-Designed to be used with a ubqt client.
+Library meant to abstract reads and writes to files by name.
+*as of initial commit* this is just a stash while I shore up the design, and start working on testing.
