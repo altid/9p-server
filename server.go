@@ -71,13 +71,11 @@ func (u *Srv) Loop(client ClientHandler) error {
 			}
 		}
 	})
-	//TODO: Modify files.go to utilize our FileHandler
 	fs := styx.HandlerFunc(func(s *styx.Session) {
 		for s.Next() {
 			t := s.Request()
 			name := path.Base(t.Path())
 			fi := &stat{name: name, file: &fakefile{name: name, handler: client}}
-			//TODO: e := &Event{Filename: name, client: s.User}
 			switch t := t.(type) {
 			case styx.Twalk:
 				t.Rwalk(fi, nil)
