@@ -9,88 +9,83 @@ import (
 	"aqwari.net/net/styx"
 )
 
-//TODO: Testing. connect and start up, and verify that any numerical port works, verify that our path is a good variable
+// FileHandler must be implemented by any program wishing to use this library
+type FileHandler interface {
+	ReadFile(filename string) ([]byte, error)
+	WriteFile(filename string, data []byte, perm os.FileMode) error
+	CloseFile(filename string) error
+}
 
-// Default files that clients will use to draw UI
-const (
-	INPUT   = "input"
-	CTL     = "ctl"
-	STATUS  = "status"
-	TITLE   = "title"
-	TABS    = "tabs"
-	SIDEBAR = "sidebar"
-	MAIN    = "main"
-)
-
-// Ubqt - Defaults to port :4567, ~/ubqt
-type Ubqt struct {
+// Srv - Defaults to port :4567
+type Srv struct {
 	show    map[string]bool
 	port    string
-	path    string
 	debug   bool
 	verbose bool
 }
 
-func newUbqt() *Ubqt {
-	return &Ubqt{port: ":4567", path: "~/ubqt"}
+// Event sends back client events (Reads, writes, closes)
+type Event struct {
+	filename string
+	client   string
+}
+
+func newSrv() *Srv {
+	return &Srv{port: ":4567"}
 }
 
 // SetPort - Accepts a string in the form ":nnnn", representing the port to listen on for the 9p connection
-func (u *Ubqt) SetPort(s string) {
+func (u *Srv) SetPort(s string) {
+	//TODO: Sanitize s
 	u.port = s
 }
 
 // Debug - Enable debugging output
-func (u *Ubqt) Debug() {
+func (u *Srv) Debug() {
 	u.debug = true
 }
 
 // Verbose - Enable verbose logging
-func (u *Ubqt) Verbose() {
+func (u *Srv) Verbose() {
 	u.verbose = true
 }
 
-// Start - Starts up ListenAndServe instance of 9p with our settings
-func (u *Ubqt) Start() error {
-	var srv styx.Server
-	if u.verbose {
-		srv.ErrorLog = log.New(os.Stderr, "", 0)
-	}
-	if u.debug {
-		srv.TraceLog = log.New(os.Stderr, "", 0)
-	}
-	srv.Addr = u.path
-	srv.Handler = u
-	err := srv.ListenAndServe()
-	if err != nil {
-		return err
-	}
-	return nil
-}
-
-// Serve9P - Called on client connection (internal)
-func (u *Ubqt) Serve9P(s *styx.Session) {
-	for s.Next() {
-		t := s.Request()
-		name := path.Base(t.Path())
-		fi := &stat{name: name, file: &fakefile{name: name}}
-		switch t := t.(type) {
-		case styx.Twalk:
-			t.Rwalk(fi, nil)
-		case styx.Topen:
-			switch name {
-			case "/":
-				t.Ropen(mkdir(u), nil)
-			default:
-				t.Ropen(fi.file, nil)
+// Loop - Starts up ListenAndServe instance of 9p with our settings
+func (u *Srv) Loop(f *FileHandler) error {
+	log := styx.HandlerFunc(func(s *styx.Session) {
+		for s.Next() {
+			if u.verbose {
+				log.Printf("%s %q %s", s.User, s.Access, s.Reuest())
 			}
-		case styx.Tstat:
-			t.Rstat(fi, nil)
-		case styx.Tcreate:
-			t.Rerror("permission denied")
-		case styx.Tremove:
-			t.Rerror("permission denied")
-
+			log.Printf("session %s %q ended", s.User, s.Access)
 		}
-	}
+	})
+	//TODO: Modify files.go to utilize our FileHandler
+	fs := styx.HandlerFunc(func(s *styx.Session) {
+		for s.Next() {
+			t := s.Request()
+			name := path.Base(t.Path())
+			fi := &stat{name: name, file: &fakefile{v: f, name: name}}
+			//TODO: e := &Event{Filename: name, client: s.User}
+			switch t := t.(type) {
+			case styx.Twalk:
+				t.Rwalk(fi, nil)
+			case styx.Topen:
+				switch name {
+				case "/":
+					t.Ropen(mkdir(u), nil)
+				default:
+					t.Ropen(fi.file, nil)
+				}
+			case styx.Tstat:
+				t.Rstat(fi, nil)
+			case styx.Tcreate:
+				t.Rerror("permission denied")
+			case styx.Tremove:
+				t.Rerror("permission denied")
+
+			}
+		}
+	})
+	styx.ListenAndServe(u.path, styx.Stack(log, fs))
 }
