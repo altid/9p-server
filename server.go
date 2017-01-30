@@ -33,7 +33,7 @@ type Event struct {
 // NewSrv returns a server type
 func NewSrv() *Srv {
 	show := make(map[string]bool)
-	return &Srv{port: ":4567", show: show}
+	return &Srv{port: ":4567", show: show, debug: false, verbose: false}
 }
 
 // SetPort - Accepts a string in the form ":nnnn", representing the port to listen on for the 9p connection
@@ -69,7 +69,6 @@ func (u *Srv) Loop(client ClientHandler) error {
 			if u.verbose {
 				log.Printf("%s %q %s", s.User, s.Access, s.Request())
 			}
-			log.Printf("session %s %q ended", s.User, s.Access)
 		}
 	})
 	//TODO: Modify files.go to utilize our FileHandler
