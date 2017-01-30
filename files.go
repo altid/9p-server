@@ -24,8 +24,8 @@ func (f *fakefile) ReadAt(p []byte, off int64) (int, error) {
 }
 
 func (f *fakefile) WriteAt(p []byte, off int64) (int, error) {
-	err := f.handler.WriteFile(f.name, p[off:], 0666)
-	return 0, err
+	err := f.handler.WriteFile(f.name, p, 0666)
+	return len(p), err
 }
 
 func (f *fakefile) Close() error {
