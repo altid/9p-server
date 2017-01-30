@@ -1,9 +1,9 @@
-package ubqt_test
+package ubqtlib_test
 
 import (
 	"os"
 
-	"github.com/ubqt-systems/srv-lib"
+	"github.com/ubqt-systems/ubqtlib"
 )
 
 type myClient struct{}
@@ -20,8 +20,9 @@ func (c *myClient) CloseFile(filename string) error {
 	return nil
 }
 
-func main() {
-	t := newSrv()
+// ExampleServer - Simply return hello on reads to any file
+func ExampleServer() {
+	t := ubqtlib.newSrv()
 	t.port = ":1234"
 	c := &myClient{}
 	t.Loop(c)

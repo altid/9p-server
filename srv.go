@@ -1,4 +1,4 @@
-package ubqt
+package ubqtlib
 
 import (
 	"log"
