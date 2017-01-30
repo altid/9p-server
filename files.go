@@ -10,7 +10,7 @@ import (
 type fakefile struct {
 	name   string
 	offset int64
-	v      FileHandler
+	v      *FileHandler
 }
 
 func (f *fakefile) Close() error {
