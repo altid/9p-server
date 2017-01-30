@@ -29,8 +29,10 @@ type Event struct {
 	client   string
 }
 
-func newSrv() *Srv {
-	return &Srv{port: ":4567"}
+// NewSrv returns a server type
+func NewSrv() *Srv {
+	show := make(map[string]bool)
+	return &Srv{port: ":4567", show: show}
 }
 
 // SetPort - Accepts a string in the form ":nnnn", representing the port to listen on for the 9p connection
