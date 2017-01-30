@@ -52,31 +52,14 @@ func (u *Srv) AddFile(filename string) error {
 	return errors.New("File already exists")
 }
 
-// Debug - Enable debugging output
-func (u *Srv) Debug() {
-	u.debug = true
-}
-
-// Verbose - Enable verbose logging
-func (u *Srv) Verbose() {
-	u.verbose = true
-}
-
 // Loop - Starts up ListenAndServe instance of 9p with our settings
 func (u *Srv) Loop(client ClientHandler) error {
-	log := styx.HandlerFunc(func(s *styx.Session) {
-		for s.Next() {
-			if u.verbose {
-				log.Printf("%s %q %s", s.User, s.Access, s.Request())
-			}
-		}
-	})
 	//TODO: Modify files.go to utilize our FileHandler
 	fs := styx.HandlerFunc(func(s *styx.Session) {
 		for s.Next() {
 			t := s.Request()
 			name := path.Base(t.Path())
-			fi := &stat{name: name, file: &fakefile{name: name, handler: client}}
+			fi := &stat{name: name, file: &fakefile{name: name, handler: client, client: s.User}}
 			//TODO: e := &Event{Filename: name, client: s.User}
 			switch t := t.(type) {
 			case styx.Twalk:
@@ -98,6 +81,6 @@ func (u *Srv) Loop(client ClientHandler) error {
 			}
 		}
 	})
-	styx.ListenAndServe(u.port, styx.Stack(log, fs))
+	styx.ListenAndServe(u.port, fs)
 	return nil
 }
