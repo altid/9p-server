@@ -1,7 +1,6 @@
 package ubqt
 
 import (
-	"io"
 	"log"
 	"os"
 	"path"
@@ -55,7 +54,7 @@ func (u *Srv) Loop(f *FileHandler) error {
 	log := styx.HandlerFunc(func(s *styx.Session) {
 		for s.Next() {
 			if u.verbose {
-				log.Printf("%s %q %s", s.User, s.Access, s.Reuest())
+				log.Printf("%s %q %s", s.User, s.Access, s.Request())
 			}
 			log.Printf("session %s %q ended", s.User, s.Access)
 		}
@@ -87,5 +86,6 @@ func (u *Srv) Loop(f *FileHandler) error {
 			}
 		}
 	})
-	styx.ListenAndServe(u.path, styx.Stack(log, fs))
+	styx.ListenAndServe(u.port, styx.Stack(log, fs))
+	return nil
 }

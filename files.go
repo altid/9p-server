@@ -10,6 +10,7 @@ import (
 type fakefile struct {
 	name   string
 	offset int64
+	v      FileHandler
 }
 
 func (f *fakefile) Close() error {
@@ -58,7 +59,7 @@ type dir struct {
 	done chan struct{}
 }
 
-func mkdir(st *Ubqt) *dir {
+func mkdir(st *Srv) *dir {
 	c := make(chan stat, 10)
 	done := make(chan struct{})
 	go func() {
