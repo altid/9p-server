@@ -1,6 +1,7 @@
 package ubqtlib
 
 import (
+	"errors"
 	"log"
 	"os"
 	"path"
@@ -39,6 +40,16 @@ func NewSrv() *Srv {
 func (u *Srv) SetPort(s string) {
 	//TODO: Sanitize s
 	u.port = s
+}
+
+// AddFile - Adds file to the directory structure
+func (u *Srv) AddFile(filename string) error {
+	_, ok := u.show[filename]
+	if !ok {
+		u.show[filename] = true
+		return nil
+	}
+	return errors.New("File already exists")
 }
 
 // Debug - Enable debugging output

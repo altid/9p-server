@@ -23,7 +23,10 @@ func (c *myClient) CloseFile(filename string) error {
 // ExampleServer - Simply return hello on reads to any file
 func ExampleServer() {
 	t := ubqtlib.NewSrv()
-	t.port = ":1234"
+	t.SetPort(":1234")
 	c := &myClient{}
-	t.Loop(c)
+	err := t.Loop(c)
+	if err != nil {
+		// do something
+	}
 }
