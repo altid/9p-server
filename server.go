@@ -2,7 +2,6 @@ package ubqtlib
 
 import (
 	"errors"
-	"log"
 	"os"
 	"path"
 
@@ -18,10 +17,8 @@ type ClientHandler interface {
 
 // Srv - Defaults to port :4567
 type Srv struct {
-	show    map[string]bool
-	port    string
-	debug   bool
-	verbose bool
+	show map[string]bool
+	port string
 }
 
 // Event sends back client events (Reads, writes, closes)
@@ -33,7 +30,7 @@ type Event struct {
 // NewSrv returns a server type
 func NewSrv() *Srv {
 	show := make(map[string]bool)
-	return &Srv{port: ":4567", show: show, debug: false, verbose: false}
+	return &Srv{port: ":4567", show: show}
 }
 
 // SetPort - Accepts a string in the form ":nnnn", representing the port to listen on for the 9p connection
@@ -54,13 +51,11 @@ func (u *Srv) AddFile(filename string) error {
 
 // Loop - Starts up ListenAndServe instance of 9p with our settings
 func (u *Srv) Loop(client ClientHandler) error {
-	//TODO: Modify files.go to utilize our FileHandler
 	fs := styx.HandlerFunc(func(s *styx.Session) {
 		for s.Next() {
 			t := s.Request()
 			name := path.Base(t.Path())
 			fi := &stat{name: name, file: &fakefile{name: name, handler: client, client: s.User}}
-			//TODO: e := &Event{Filename: name, client: s.User}
 			switch t := t.(type) {
 			case styx.Twalk:
 				t.Rwalk(fi, nil)
