@@ -15,7 +15,7 @@ type fakefile struct {
 }
 
 func (f *fakefile) ReadAt(p []byte, off int64) (int, error) {
-	c, err := f.handler.ReadFile(f.name)
+	c, err := f.handler.ClientRead(f.name, f.client)
 	if err != nil {
 		return 0, err
 	}
@@ -24,7 +24,7 @@ func (f *fakefile) ReadAt(p []byte, off int64) (int, error) {
 }
 
 func (f *fakefile) WriteAt(p []byte, off int64) (int, error) {
-	err := f.handler.WriteFile(f.name, p, 0666)
+	err := f.handler.ClientWrite(f.name, f.client, p)
 	return len(p), err
 }
 

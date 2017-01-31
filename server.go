@@ -2,7 +2,6 @@ package ubqtlib
 
 import (
 	"errors"
-	"os"
 	"path"
 
 	"aqwari.net/net/styx"
@@ -10,9 +9,8 @@ import (
 
 // ClientHandler must be satisfied to use this library
 type ClientHandler interface {
-	WriteFile(filename string, data []byte, perm os.FileMode) error
-	ReadFile(filename string) ([]byte, error)
-	CloseFile(filename string) error
+	ClientWrite(filename string, client string, data []byte) error
+	ClientRead(filename string, client string) ([]byte, error)
 }
 
 // Srv - Defaults to port :4567
