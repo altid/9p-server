@@ -9,7 +9,7 @@ import (
 
 // ClientHandler must be satisfied to use this library
 type ClientHandler interface {
-	ClientWrite(filename string, client string, data []byte) error
+	ClientWrite(filename string, client string, data []byte) (int, error)
 	ClientRead(filename string, client string) ([]byte, error)
 	ClientClose(filename string, client string) error
 }
