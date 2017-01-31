@@ -11,6 +11,7 @@ import (
 type ClientHandler interface {
 	ClientWrite(filename string, client string, data []byte) error
 	ClientRead(filename string, client string) ([]byte, error)
+	ClientClose(filename string, client string) error
 }
 
 // Srv - Defaults to port :4567

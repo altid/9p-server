@@ -29,7 +29,7 @@ func (f *fakefile) WriteAt(p []byte, off int64) (int, error) {
 }
 
 func (f *fakefile) Close() error {
-	return f.handler.CloseFile(f.name)
+	return f.handler.ClientClose(f.name, f.client)
 }
 
 func (f *fakefile) size() int64 {
