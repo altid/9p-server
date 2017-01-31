@@ -1,22 +1,20 @@
 package ubqtlib_test
 
 import (
-	"os"
-
 	"github.com/ubqt-systems/ubqtlib"
 )
 
 type myClient struct{}
 
-func (c *myClient) WriteFile(filename string, data []byte, perm os.FileMode) error {
+func (c *myClient) ClientWrite(filename string, client string, data []byte) error {
 	return nil
 }
 
-func (c *myClient) ReadFile(filename string) ([]byte, error) {
+func (c *myClient) ClientRead(filename string, client string) ([]byte, error) {
 	return []byte("hello"), nil
 }
 
-func (c *myClient) CloseFile(filename string) error {
+func (c *myClient) ClientClose(filename string, client string) error {
 	return nil
 }
 
