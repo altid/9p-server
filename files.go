@@ -1,6 +1,7 @@
 package ubqtlib
 
 import (
+	"bytes"
 	"fmt"
 	"io"
 	"os"
@@ -24,8 +25,14 @@ func (f *fakefile) ReadAt(p []byte, off int64) (int, error) {
 }
 
 func (f *fakefile) WriteAt(p []byte, off int64) (int, error) {
+	buf := new(bytes.Buffer)
 	err := f.handler.ClientWrite(f.name, f.client, p)
-	return len(p), err
+	if err != nil {
+		return 0, err
+	}
+	// Drain
+	n, err := buf.Write(p)
+	return n, err
 }
 
 func (f *fakefile) Close() error {
