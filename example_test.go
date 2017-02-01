@@ -6,8 +6,8 @@ import (
 
 type myClient struct{}
 
-func (c *myClient) ClientWrite(filename string, client string, data []byte) error {
-	return nil
+func (c *myClient) ClientWrite(filename string, client string, data []byte) (int, error) {
+	return len(data), nil
 }
 
 func (c *myClient) ClientRead(filename string, client string) ([]byte, error) {

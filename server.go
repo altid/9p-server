@@ -2,6 +2,8 @@ package ubqtlib
 
 import (
 	"errors"
+	"log"
+	"os"
 	"path"
 
 	"aqwari.net/net/styx"
@@ -16,8 +18,10 @@ type ClientHandler interface {
 
 // Srv - Defaults to port :4567
 type Srv struct {
-	show map[string]bool
-	port string
+	show    map[string]bool
+	port    string
+	verbose bool
+	debug   bool
 }
 
 // Event sends back client events (Reads, writes, closes)
@@ -29,13 +33,23 @@ type Event struct {
 // NewSrv returns a server type
 func NewSrv() *Srv {
 	show := make(map[string]bool)
-	return &Srv{port: ":4567", show: show}
+	return &Srv{port: ":4567", show: show, debug: false, verbose: false}
 }
 
 // SetPort - Accepts a string in the form ":nnnn", representing the port to listen on for the 9p connection
 func (u *Srv) SetPort(s string) {
 	//TODO: Sanitize s
 	u.port = s
+}
+
+// Debug - enable debugging output to the log
+func (u *Srv) Debug() {
+	u.debug = true
+}
+
+// Verbose - Enable verbose logging of messages
+func (u *Srv) Verbose() {
+	u.verbose = true
 }
 
 // AddFile - Adds file to the directory structure
@@ -75,6 +89,15 @@ func (u *Srv) Loop(client ClientHandler) error {
 			}
 		}
 	})
-	styx.ListenAndServe(u.port, fs)
+	var srv styx.Server
+	if u.verbose {
+		srv.ErrorLog = log.New(os.Stderr, "", 0)
+	}
+	if u.debug {
+		srv.TraceLog = log.New(os.Stderr, "", 0)
+	}
+	srv.Addr = u.port
+	srv.Handler = fs
+	log.Fatal(srv.ListenAndServe())
 	return nil
 }
