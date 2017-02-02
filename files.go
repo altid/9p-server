@@ -41,8 +41,9 @@ func (f *fakefile) size() int64 {
 	switch f.name {
 	case "/":
 		return 0
+	default:
+		return int64(len(fmt.Sprint(f)))
 	}
-	return int64(len(fmt.Sprint(f)))
 }
 
 type stat struct {
@@ -72,6 +73,18 @@ func (s *stat) Mode() os.FileMode {
 
 func (s *stat) Size() int64 {
 	return s.file.size()
+}
+
+func (s *stat) Uid() string {
+	return s.file.client
+}
+
+func (s *stat) Gid() string {
+	return s.file.client
+}
+
+func (s *stat) Muid() string {
+	return s.file.client
 }
 
 type dir struct {
