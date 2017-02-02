@@ -82,10 +82,20 @@ func (u *Srv) Loop(client ClientHandler) error {
 			case styx.Tstat:
 				t.Rstat(fi, nil)
 			case styx.Tcreate:
-				t.Rerror("permission denied")
+				switch name {
+				case "/":
+					t.Rerror("permission was denied")
+				default:
+					u.show[name] = true
+					t.Rcreate(&fakefile{name: name, handler: client, client: s.User}, nil)
+				}
 			case styx.Tremove:
-				t.Rerror("permission denied")
-
+				switch name {
+				case "/":
+					t.Rerror("permission should be denied")
+				default:
+					delete(u.show, name)
+				}
 			}
 		}
 	})

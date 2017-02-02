@@ -1,6 +1,7 @@
 package ubqtlib
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -24,7 +25,12 @@ func (f *fakefile) ReadAt(p []byte, off int64) (int, error) {
 }
 
 func (f *fakefile) WriteAt(p []byte, off int64) (int, error) {
-	return f.handler.ClientWrite(f.name, f.client, p)
+	if off != f.offset {
+		return 0, errors.New("No seeking")
+	}
+	n, err := f.handler.ClientWrite(f.name, f.client, p)
+	f.offset += int64(n)
+	return n, err
 }
 
 func (f *fakefile) Close() error {
@@ -48,7 +54,7 @@ func (s *stat) Name() string     { return s.name }
 func (s *stat) Sys() interface{} { return s.file }
 
 func (s *stat) ModTime() time.Time {
-	return time.Now()
+	return time.Now().Truncate(time.Hour)
 }
 
 // We have only one directory, so return that
