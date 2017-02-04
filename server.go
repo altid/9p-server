@@ -81,10 +81,16 @@ func (u *Srv) Loop(client ClientHandler) error {
 				}
 			case styx.Tstat:
 				t.Rstat(fi, nil)
+			case styx.Ttruncate:
+				t.Rtruncate(nil)
+			case styx.Tsync:
+				t.Rsync(nil)
+			case styx.Tutimes:
+				t.Rutimes(nil)
 			case styx.Tcreate:
 				switch name {
 				case "/":
-					t.Rerror("permission was denied")
+					t.Rerror("Cannot create directories")
 				default:
 					u.show[name] = true
 					t.Rcreate(&fakefile{name: name, handler: client, client: s.User}, nil)
@@ -92,7 +98,7 @@ func (u *Srv) Loop(client ClientHandler) error {
 			case styx.Tremove:
 				switch name {
 				case "/":
-					t.Rerror("permission should be denied")
+					break
 				default:
 					delete(u.show, name)
 				}
