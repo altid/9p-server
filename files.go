@@ -1,7 +1,6 @@
 package ubqtlib
 
 import (
-	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -10,9 +9,9 @@ import (
 
 type fakefile struct {
 	name    string
-	offset  int64
 	client  string
 	handler ClientHandler
+	mtime   time.Time
 }
 
 func (f *fakefile) ReadAt(p []byte, off int64) (int, error) {
@@ -25,19 +24,13 @@ func (f *fakefile) ReadAt(p []byte, off int64) (int, error) {
 }
 
 func (f *fakefile) WriteAt(p []byte, off int64) (int, error) {
-	if off != f.offset {
-		return 0, errors.New("No seeking")
-	}
 	n, err := f.handler.ClientWrite(f.name, f.client, p)
-	f.offset += int64(n)
+	f.mtime = time.Now().Truncate(time.Hour)
 	return n, err
+
 }
 
-func (f *fakefile) Close() error {
-	return f.handler.ClientClose(f.name, f.client)
-}
-
-func (f *fakefile) size() int64 {
+func (f *fakefile) Size() int64 {
 	switch f.name {
 	case "/":
 		return 0
@@ -46,63 +39,43 @@ func (f *fakefile) size() int64 {
 	}
 }
 
-type stat struct {
-	name string
-	file *fakefile
-}
+func (f *fakefile) Name() string     { return f.name }
+func (f *fakefile) Sys() interface{} { return f }
 
-func (s *stat) Name() string     { return s.name }
-func (s *stat) Sys() interface{} { return s.file }
-
-func (s *stat) ModTime() time.Time {
-	return time.Now().Truncate(time.Hour)
+func (f *fakefile) ModTime() time.Time {
+	if f.mtime.IsZero() {
+		f.mtime = time.Now().Truncate(time.Hour)
+	}
+	return f.mtime
 }
 
 // We have only one directory, so return that
-func (s *stat) IsDir() bool {
-	return (s.name == "/")
+func (f *fakefile) IsDir() bool {
+	return (f.name == "/")
 }
 
 // Again, only root directory so we can safely optimize
-func (s *stat) Mode() os.FileMode {
-	if s.name == "/" {
+func (f *fakefile) Mode() os.FileMode {
+	if f.name == "/" {
 		return os.ModeDir | 0755
 	}
 	return 0666
 }
 
-func (s *stat) Size() int64 {
-	return s.file.size()
-}
-
-func (s *stat) Uid() string {
-	return s.file.client
-}
-
-func (s *stat) Gid() string {
-	return s.file.client
-}
-
-func (s *stat) Muid() string {
-	return s.file.client
-}
-
 type dir struct {
-	c    chan stat
+	c    chan fakefile
 	done chan struct{}
 }
 
-func mkdir(st *Srv) *dir {
-	c := make(chan stat, 10)
+func mkdir(fi Client) *dir {
+	c := make(chan fakefile, 10)
 	done := make(chan struct{})
 	go func() {
-		for name, show := range st.show {
-			if show {
-				select {
-				case c <- stat{name: name, file: &fakefile{name: name}}:
-				case <-done:
-					break
-				}
+		for _, file := range fi {
+			select {
+			case c <- *file:
+			case <-done:
+				break
 			}
 		}
 		close(c)

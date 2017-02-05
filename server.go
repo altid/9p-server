@@ -5,6 +5,7 @@ import (
 	"log"
 	"os"
 	"path"
+	"time"
 
 	"aqwari.net/net/styx"
 )
@@ -13,8 +14,10 @@ import (
 type ClientHandler interface {
 	ClientWrite(filename string, client string, data []byte) (int, error)
 	ClientRead(filename string, client string) ([]byte, error)
-	ClientClose(filename string, client string) error
 }
+
+// Client is a map of our files
+type Client map[string]*fakefile
 
 // Srv - Defaults to port :4567
 type Srv struct {
@@ -22,12 +25,7 @@ type Srv struct {
 	port    string
 	verbose bool
 	debug   bool
-}
-
-// Event sends back client events (Reads, writes, closes)
-type Event struct {
-	filename string
-	client   string
+	input   []byte
 }
 
 // NewSrv returns a server type
@@ -62,45 +60,51 @@ func (u *Srv) AddFile(filename string) error {
 	return errors.New("File already exists")
 }
 
+func (u *Srv) newclient(h ClientHandler, c string) Client {
+	files := make(map[string]*fakefile)
+	for n, show := range u.show {
+		if show {
+			files[n] = &fakefile{name: n, handler: h, client: c, mtime: time.Now()}
+		}
+	}
+	return files
+}
+
 // Loop - Starts up ListenAndServe instance of 9p with our settings
 func (u *Srv) Loop(client ClientHandler) error {
 	fs := styx.HandlerFunc(func(s *styx.Session) {
+		files := u.newclient(client, s.User)
 		for s.Next() {
 			t := s.Request()
 			name := path.Base(t.Path())
-			fi := &stat{name: name, file: &fakefile{name: name, handler: client, client: s.User}}
+			fi, ok := files[name]
+			if !ok {
+				// We're at either /, or an arbitrary file
+				fi = &fakefile{name: name, mtime: time.Now(), handler: client, client: s.User}
+			}
 			switch t := t.(type) {
 			case styx.Twalk:
 				t.Rwalk(fi, nil)
 			case styx.Topen:
-				switch name {
+				switch fi.name {
 				case "/":
-					t.Ropen(mkdir(u), nil)
+					t.Ropen(mkdir(files), nil)
 				default:
-					t.Ropen(fi.file, nil)
+					t.Ropen(fi, nil)
 				}
 			case styx.Tstat:
 				t.Rstat(fi, nil)
 			case styx.Ttruncate:
 				t.Rtruncate(nil)
-			case styx.Tsync:
-				t.Rsync(nil)
 			case styx.Tutimes:
 				t.Rutimes(nil)
+			case styx.Tsync:
+				t.Rsync(nil)
 			case styx.Tcreate:
-				switch name {
-				case "/":
+				if fi.IsDir() {
 					t.Rerror("Cannot create directories")
-				default:
-					u.show[name] = true
-					t.Rcreate(&fakefile{name: name, handler: client, client: s.User}, nil)
-				}
-			case styx.Tremove:
-				switch name {
-				case "/":
-					break
-				default:
-					delete(u.show, name)
+				} else {
+					t.Rcreate(fi, nil)
 				}
 			}
 		}
