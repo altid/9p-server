@@ -25,9 +25,11 @@ func (f *fakefile) ReadAt(p []byte, off int64) (int, error) {
 }
 
 func (f *fakefile) WriteAt(p []byte, off int64) (int, error) {
-	n, err := f.handler.ClientWrite(f.name, f.client, p)
-	return n, err
-
+	if off == int64(len(p)) {
+		n, err := f.handler.ClientWrite(f.name, f.client, p)
+		return n, err
+	}
+	return 0, nil
 }
 
 func (f *fakefile) Size() int64 {
