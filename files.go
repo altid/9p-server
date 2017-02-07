@@ -10,6 +10,7 @@ import (
 type fakefile struct {
 	name    string
 	client  string
+	size    int64
 	handler ClientHandler
 	mtime   time.Time
 }
@@ -25,7 +26,6 @@ func (f *fakefile) ReadAt(p []byte, off int64) (int, error) {
 
 func (f *fakefile) WriteAt(p []byte, off int64) (int, error) {
 	n, err := f.handler.ClientWrite(f.name, f.client, p)
-	f.mtime = time.Now().Truncate(time.Hour)
 	return n, err
 
 }

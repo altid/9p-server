@@ -97,6 +97,7 @@ func (u *Srv) Loop(client ClientHandler) error {
 			case styx.Ttruncate:
 				t.Rtruncate(nil)
 			case styx.Tutimes:
+				fi.mtime = t.Mtime
 				t.Rutimes(nil)
 			case styx.Tsync:
 				t.Rsync(nil)
@@ -106,6 +107,8 @@ func (u *Srv) Loop(client ClientHandler) error {
 				} else {
 					t.Rcreate(fi, nil)
 				}
+			case styx.Tchmod:
+				t.Rchmod(nil)
 			}
 		}
 	})
