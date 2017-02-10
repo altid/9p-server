@@ -101,6 +101,9 @@ func (u *Srv) Loop(client ClientHandler) error {
 				t.Rutimes(nil)
 			case styx.Tsync:
 				t.Rsync(nil)
+			case styx.Trename:
+				fi.name = path.Base(t.NewPath)
+				t.Rrename(nil)
 			case styx.Tcreate:
 				if fi.IsDir() {
 					t.Rerror("Cannot create directories")
@@ -108,6 +111,7 @@ func (u *Srv) Loop(client ClientHandler) error {
 					t.Rcreate(fi, nil)
 				}
 			case styx.Tchmod:
+				fi.mode = t.Mode
 				t.Rchmod(nil)
 			}
 		}

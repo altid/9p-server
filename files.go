@@ -11,6 +11,7 @@ type fakefile struct {
 	name    string
 	client  string
 	size    int64
+	mode    os.FileMode
 	handler ClientHandler
 	mtime   time.Time
 }
@@ -25,11 +26,8 @@ func (f *fakefile) ReadAt(p []byte, off int64) (int, error) {
 }
 
 func (f *fakefile) WriteAt(p []byte, off int64) (int, error) {
-	if off == int64(len(p)) {
-		n, err := f.handler.ClientWrite(f.name, f.client, p)
-		return n, err
-	}
-	return 0, nil
+	n, err := f.handler.ClientWrite(f.name, f.client, p)
+	return n, err
 }
 
 func (f *fakefile) Size() int64 {
@@ -60,6 +58,9 @@ func (f *fakefile) IsDir() bool {
 func (f *fakefile) Mode() os.FileMode {
 	if f.name == "/" {
 		return os.ModeDir | 0755
+	}
+	if f.mode > 0 {
+		return f.mode
 	}
 	return 0666
 }
