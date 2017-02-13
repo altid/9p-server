@@ -95,9 +95,11 @@ func (u *Srv) Loop(client ClientHandler) error {
 			case styx.Tstat:
 				t.Rstat(fi, nil)
 			case styx.Ttruncate:
+				fi.size = t.Size
 				t.Rtruncate(nil)
 			case styx.Tutimes:
 				fi.mtime = t.Mtime
+				fi.atime = t.Atime
 				t.Rutimes(nil)
 			case styx.Tsync:
 				t.Rsync(nil)

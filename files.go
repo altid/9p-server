@@ -8,12 +8,12 @@ import (
 )
 
 type fakefile struct {
-	name    string
-	client  string
-	size    int64
-	mode    os.FileMode
-	handler ClientHandler
-	mtime   time.Time
+	name         string
+	client       string
+	size         int64
+	mode         os.FileMode
+	handler      ClientHandler
+	atime, mtime time.Time
 }
 
 func (f *fakefile) ReadAt(p []byte, off int64) (int, error) {
