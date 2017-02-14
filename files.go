@@ -44,7 +44,8 @@ func (f *fakefile) Sys() interface{} { return f }
 
 func (f *fakefile) ModTime() time.Time {
 	if f.mtime.IsZero() {
-		f.mtime = time.Now().Truncate(time.Hour)
+		f.mtime = time.Now()
+		f.atime = time.Now()
 	}
 	return f.mtime
 }
