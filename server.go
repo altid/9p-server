@@ -14,6 +14,8 @@ import (
 type ClientHandler interface {
 	ClientWrite(filename string, client string, data []byte) (int, error)
 	ClientRead(filename string, client string) ([]byte, error)
+	ClientConnect(client string)
+	ClientDisconnect(client string)
 }
 
 // Client is a map of our files
@@ -73,6 +75,7 @@ func (u *Srv) newclient(h ClientHandler, c string) Client {
 // Loop - Starts up ListenAndServe instance of 9p with our settings
 func (u *Srv) Loop(client ClientHandler) error {
 	fs := styx.HandlerFunc(func(s *styx.Session) {
+		client.ClientConnect(s.User)
 		files := u.newclient(client, s.User)
 		for s.Next() {
 			t := s.Request()
@@ -117,8 +120,10 @@ func (u *Srv) Loop(client ClientHandler) error {
 				t.Rchmod(nil)
 			}
 		}
+		client.ClientDisconnect(s.User)
 	})
 	var srv styx.Server
+	//BUG:(halfwit) On verbose, writes will fail
 	if u.verbose {
 		srv.ErrorLog = log.New(os.Stderr, "", 0)
 	}
