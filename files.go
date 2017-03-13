@@ -1,7 +1,7 @@
 package ubqtlib
 
 import (
-	"fmt"
+	//"fmt"
 	"io"
 	"os"
 	"time"
@@ -30,12 +30,7 @@ func (f *fakefile) WriteAt(p []byte, off int64) (int, error) {
 }
 
 func (f *fakefile) Size() int64 {
-	switch f.name {
-	case "/":
-		return 0
-	default:
-		return int64(len(fmt.Sprint(f)))
-	}
+	return 0
 }
 
 func (f *fakefile) Name() string     { return f.name }
