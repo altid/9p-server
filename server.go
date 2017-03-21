@@ -74,6 +74,7 @@ func (u *Srv) newclient(h ClientHandler, c string) Client {
 
 // Loop - Starts up ListenAndServe instance of 9p with our settings
 func (u *Srv) Loop(client ClientHandler) error {
+	u.Addfile("event")
 	fs := styx.HandlerFunc(func(s *styx.Session) {
 		client.ClientConnect(s.User)
 		files := u.newclient(client, s.User)
