@@ -64,6 +64,7 @@ func (u *Srv) AddFile(filename string) error {
 
 func (u *Srv) newclient(h ClientHandler, c string) Client {
 	files := make(map[string]*fakefile)
+	files["event"] = &fakefile{name: "event", handler: h, client: c, mtime: time.Now()}
 	for n, show := range u.show {
 		if show {
 			files[n] = &fakefile{name: n, handler: h, client: c, mtime: time.Now()}
@@ -74,10 +75,10 @@ func (u *Srv) newclient(h ClientHandler, c string) Client {
 
 // Loop - Starts up ListenAndServe instance of 9p with our settings
 func (u *Srv) Loop(client ClientHandler) error {
-	u.Addfile("event")
 	fs := styx.HandlerFunc(func(s *styx.Session) {
 		client.ClientConnect(s.User)
 		files := u.newclient(client, s.User)
+		u.AddFile("event")
 		for s.Next() {
 			t := s.Request()
 			name := path.Base(t.Path())
@@ -98,27 +99,6 @@ func (u *Srv) Loop(client ClientHandler) error {
 				}
 			case styx.Tstat:
 				t.Rstat(fi, nil)
-				//case styx.Ttruncate:
-				//	fi.size = t.Size
-				//	t.Rtruncate(nil)
-				//case styx.Tutimes:
-				//	fi.mtime = t.Mtime
-				//	fi.atime = t.Atime
-				//	t.Rutimes(nil)
-				//case styx.Tsync:
-				//	t.Rsync(nil)
-				//case styx.Trename:
-				//	fi.name = path.Base(t.NewPath)
-				//	t.Rrename(nil)
-				//case styx.Tcreate:
-				//	if fi.IsDir() {
-				//		t.Rerror("Cannot create directories")
-				//	} else {
-				//		t.Rcreate(fi, nil)
-				//	}
-				//case styx.Tchmod:
-				//	fi.mode = t.Mode
-				//	t.Rchmod(nil)
 			}
 		}
 		client.ClientDisconnect(s.User)
