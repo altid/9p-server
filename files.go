@@ -55,7 +55,7 @@ func (f *fakefile) Mode() os.FileMode {
 		case "/":
 			return os.ModeDir | 0755
 		case "event":
-			return os.ModeSocket | 0666
+			return os.ModeSocket | 0755
 	}
 	return 0666
 }

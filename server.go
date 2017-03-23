@@ -99,18 +99,18 @@ func (u *Srv) Loop(client ClientHandler) error {
 				}
 			case styx.Tstat:
 				t.Rstat(fi, nil)
-			case styx.Truncate:
+			case styx.Ttruncate:
 				fi.size = t.Size
 				t.Rtruncate(nil)
-			case styxx.Tutimes:
+			case styx.Tutimes:
 				fi.mtime = t.Mtime
 				fi.atime = t.Atime
 				t.Rutimes(nil)
 			case styx.Tsync:
 				t.Rsync(nil)
-			case styx.Rename:
+			case styx.Trename:
 				fi.name = path.Base(t.NewPath)
-				t.Rename(nil)
+				t.Rrename(nil)
 			case styx.Tcreate:
 				if fi.IsDir() {
 					t.Rerror("cannot create directories")
