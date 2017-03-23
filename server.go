@@ -36,7 +36,8 @@ type Srv struct {
 // NewSrv returns a server type
 func NewSrv() *Srv {
 	show := make(map[string]bool)
-	return &Srv{port: ":4567", show: show, debug: false, verbose: false}
+	event := make(map[string]chan []byte)
+	return &Srv{port: ":4567", show: show, debug: false, verbose: false, event: event}
 }
 
 // SetPort - Accepts a string in the form ":nnnn", representing the port to listen on for the 9p connection
@@ -78,7 +79,9 @@ func (u *Srv) newclient(h ClientHandler, c string) Client {
 // SendEvent - Send an event to any clients that are currently blocking for data
 func (u *Srv) SendEvent(file []byte) {
 	for _, name := range u.event {
+		go func() {
 		name <- file
+		}()
 	}
 }
 

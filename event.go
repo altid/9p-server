@@ -1,8 +1,12 @@
 package ubqtlib
 
+import "io"
+
 type event struct {
 	data chan []byte
 	done chan struct{}
+	name string
+	u    *Srv
 }
 
 func (e *event) Close() error {
@@ -10,30 +14,29 @@ func (e *event) Close() error {
 	return nil
 }
 
+// On read, the file will want to get back stuff into its buffer; which we copy
 func (e *event) Read(b []byte) (n int, err error) {
-	e.data = make(chan []byte)
-	e.done = make(chan struct{})
-	for {
-		select {
-		case buf := <-e.data:
-			n += copy(b, buf)
-		case <-e.done:
-			goto end
-		}
-		close(e.data)
+	buf, ok := <-e.data
+	if !ok {
+		return 0, io.EOF
 	}
-end:
-	return n, nil
-}
-
-func (u *Srv) appendEvent(name string) {
-	u.Lock()
-	c := make(chan []byte)
-	defer u.Unlock()
-	u.event[name] = c
+	n += copy(b, buf)
+	return n, err
 }
 
 func (u *Srv) readEvent(name string) *event {
-	u.appendEvent(name)
-	return &event{data: u.event[name]}
+	data := make(chan []byte, 10)
+	done := make(chan struct{})
+	go func() {
+		for {
+			select {
+			case buf := <-u.event:
+				data <- buf
+			case <-done:
+				break
+			}
+		}
+		close(data)
+	}()
+	return &event{data: data, done: done}
 }
