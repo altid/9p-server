@@ -99,6 +99,27 @@ func (u *Srv) Loop(client ClientHandler) error {
 				}
 			case styx.Tstat:
 				t.Rstat(fi, nil)
+			case styx.Truncate:
+				fi.size = t.Size
+				t.Rtruncate(nil)
+			case styxx.Tutimes:
+				fi.mtime = t.Mtime
+				fi.atime = t.Atime
+				t.Rutimes(nil)
+			case styx.Tsync:
+				t.Rsync(nil)
+			case styx.Rename:
+				fi.name = path.Base(t.NewPath)
+				t.Rename(nil)
+			case styx.Tcreate:
+				if fi.IsDir() {
+					t.Rerror("cannot create directories")
+				} else {
+					t.Rcreate(fi, nil)
+				}
+			case styx.Tchmod:
+				fi.mode = t.Mode
+				t.Rchmod(nil)
 			}
 		}
 		client.ClientDisconnect(s.User)
