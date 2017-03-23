@@ -5,6 +5,7 @@ import (
 	"log"
 	"os"
 	"path"
+	"sync"
 	"time"
 
 	"aqwari.net/net/styx"
@@ -24,10 +25,12 @@ type Client map[string]*fakefile
 // Srv - Defaults to port :4567
 type Srv struct {
 	show    map[string]bool
+	event   map[string]chan []byte
 	port    string
 	verbose bool
 	debug   bool
 	input   []byte
+	sync.Mutex
 }
 
 // NewSrv returns a server type
@@ -64,7 +67,6 @@ func (u *Srv) AddFile(filename string) error {
 
 func (u *Srv) newclient(h ClientHandler, c string) Client {
 	files := make(map[string]*fakefile)
-	files["event"] = &fakefile{name: "event", handler: h, client: c, mtime: time.Now()}
 	for n, show := range u.show {
 		if show {
 			files[n] = &fakefile{name: n, handler: h, client: c, mtime: time.Now()}
@@ -73,13 +75,20 @@ func (u *Srv) newclient(h ClientHandler, c string) Client {
 	return files
 }
 
+// SendEvent - Send an event to any clients that are currently blocking for data
+func (u *Srv) SendEvent(file []byte) {
+	for _, name := range u.event {
+		name <- file
+	}
+}
+
 // Loop - Starts up ListenAndServe instance of 9p with our settings
 func (u *Srv) Loop(client ClientHandler) error {
 	fs := styx.HandlerFunc(func(s *styx.Session) {
 		client.ClientConnect(s.User)
 		files := u.newclient(client, s.User)
-		u.AddFile("event")
 		for s.Next() {
+			u.AddFile("event")
 			t := s.Request()
 			name := path.Base(t.Path())
 			fi, ok := files[name]
@@ -94,6 +103,8 @@ func (u *Srv) Loop(client ClientHandler) error {
 				switch fi.name {
 				case "/":
 					t.Ropen(mkdir(files), nil)
+				case "event":
+					t.Ropen(u.readEvent(s.User), nil)
 				default:
 					t.Ropen(fi, nil)
 				}

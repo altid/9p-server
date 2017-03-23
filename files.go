@@ -52,10 +52,8 @@ func (f *fakefile) IsDir() bool {
 // Again, only root directory so we can safely optimize
 func (f *fakefile) Mode() os.FileMode {
 	switch f.name {
-		case "/":
-			return os.ModeDir | 0755
-		case "event":
-			return os.ModeSocket | 0666
+	case "/":
+		return os.ModeDir | 0755
 	}
 	return 0666
 }
