@@ -80,7 +80,7 @@ func (u *Srv) newclient(h ClientHandler, c string) Client {
 func (u *Srv) SendEvent(file []byte) {
 	for _, name := range u.event {
 		go func() {
-		name <- file
+			name <- file
 		}()
 	}
 }
@@ -90,8 +90,8 @@ func (u *Srv) Loop(client ClientHandler) error {
 	fs := styx.HandlerFunc(func(s *styx.Session) {
 		client.ClientConnect(s.User)
 		files := u.newclient(client, s.User)
+		u.AddFile("event")
 		for s.Next() {
-			u.AddFile("event")
 			t := s.Request()
 			name := path.Base(t.Path())
 			fi, ok := files[name]

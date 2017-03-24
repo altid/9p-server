@@ -1,42 +1,25 @@
 package ubqtlib
 
-import "io"
+import (
+	"os"
+	"time"
+)
 
+//A read on "event" will block indefinitely, recieving lines for each SendEvent the client issues.
+//instigating a read will register a listener for messages from SendEvent, and Close()ing the file will unregister
 type event struct {
-	data chan []byte
-	done chan struct{}
-	name string
-	u    *Srv
+	client string
+	mtime  time.Time
+	wait   chan string
+	off    int64
 }
 
-func (e *event) Close() error {
-	close(e.done)
-	return nil
-}
+func (e *event) Size() int64        { return e.off }
+func (e *event) Name() string       { return "event" }
+func (e *event) ModTime() time.Time { return e.mtime }
+func (e *event) Mode() os.FileMode  { return 0400 }
+func (e *event) IsDir() bool        { return false }
+func (e *event) Sys() interface{}   { return nil }
 
-// On read, the file will want to get back stuff into its buffer; which we copy
-func (e *event) Read(b []byte) (n int, err error) {
-	buf, ok := <-e.data
-	if !ok {
-		return 0, io.EOF
-	}
-	n += copy(b, buf)
-	return n, err
-}
-
-func (u *Srv) readEvent(name string) *event {
-	data := make(chan []byte, 10)
-	done := make(chan struct{})
-	go func() {
-		for {
-			select {
-			case buf := <-u.event:
-				data <- buf
-			case <-done:
-				break
-			}
-		}
-		close(data)
-	}()
-	return &event{data: data, done: done}
-}
+//TODO: We will have to figure out the proper way to do this, with 9p.
+//direct_io flag is set
