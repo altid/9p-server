@@ -5,13 +5,28 @@ import (
 	"time"
 )
 
-//A read on "event" will block indefinitely, recieving lines for each SendEvent the client issues.
-//instigating a read will register a listener for messages from SendEvent, and Close()ing the file will unregister
 type event struct {
 	client string
 	mtime  time.Time
-	wait   chan string
+	wait   chan []byte
+	done   chan struct{}
 	off    int64
+}
+
+// Read in a loop, writing to b as we get more data
+func (e *event) Read(b []byte) (n int, err error) {
+	for {
+		select {
+		case msg := <-e.wait:
+			copy(b, msg)
+		}
+	}
+	return 0, nil
+}
+
+func (e *event) Close() error {
+	close(e.done)
+	return nil
 }
 
 func (e *event) Size() int64        { return e.off }
@@ -21,5 +36,17 @@ func (e *event) Mode() os.FileMode  { return 0400 }
 func (e *event) IsDir() bool        { return false }
 func (e *event) Sys() interface{}   { return nil }
 
-//TODO: We will have to figure out the proper way to do this, with 9p.
-//direct_io flag is set
+func (u *Srv) readEvent(user string) *event {
+	u.event[user] = make(chan []byte)
+	e.done = make(chan struct{})
+	go func() {
+		for {
+			select {
+			case <-done:
+				delete(u.event, user)
+			}
+		}
+	}()
+	return &event{client: user, mtime: time.Now(), wait: u.event[user], off: 0}
+}
+
