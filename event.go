@@ -38,7 +38,7 @@ func (e *event) Sys() interface{}   { return nil }
 
 func (u *Srv) readEvent(user string) *event {
 	u.event[user] = make(chan []byte)
-	done = make(chan struct{})
+	done := make(chan struct{})
 	go func() {
 		for {
 			select {
@@ -49,4 +49,3 @@ func (u *Srv) readEvent(user string) *event {
 	}()
 	return &event{client: user, mtime: time.Now(), done: done, wait: u.event[user], off: 0}
 }
-
