@@ -30,7 +30,7 @@ func (f *fakefile) WriteAt(p []byte, off int64) (int, error) {
 }
 
 func (f *fakefile) Size() int64 {
-	return 0
+	return f.size
 }
 
 func (f *fakefile) Name() string     { return f.name }
