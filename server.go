@@ -16,6 +16,7 @@ import (
 type ClientHandler interface {
 	ClientWrite(filename string, client string, data []byte) (int, error)
 	ClientRead(filename string, client string) ([]byte, error)
+	ClientOther(filename string, client string) (*os.File, error)
 	ClientConnect(client string)
 	ClientDisconnect(client string)
 }
@@ -111,13 +112,23 @@ func (u *Srv) Loop(client ClientHandler) error {
 					u.Lock()
 					u.event[s.User] = make(chan []byte)
 					u.Unlock()
-					msg := <- u.event[s.User]
+					msg := <-u.event[s.User]
 					t.Ropen(bytes.NewReader(msg), nil)
 					u.Lock()
 					delete(u.event, s.User)
 					u.Unlock()
-				default:
+				case "input":
+				case "ctl":
+				case "status":
+				case "tabs":
+				case "title":
 					t.Ropen(fi, nil)
+				default:
+					realFile, err := client.ClientOther(fi.name, s.User)
+					if err != nil {
+						t.Rerror("error opening file")
+					}
+					t.Ropen(realFile, nil)
 				}
 			case styx.Tstat:
 				t.Rstat(fi, nil)
