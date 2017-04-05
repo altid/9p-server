@@ -118,9 +118,13 @@ func (u *Srv) Loop(client ClientHandler) error {
 					delete(u.event, s.User)
 					u.Unlock()
 				case "input":
+					t.Ropen(fi, nil)
 				case "ctl":
+					t.Ropen(fi, nil)
 				case "status":
+					t.Ropen(fi, nil)
 				case "tabs":
+					t.Ropen(fi, nil)
 				case "title":
 					t.Ropen(fi, nil)
 				default:
