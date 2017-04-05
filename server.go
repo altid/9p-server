@@ -81,9 +81,9 @@ func (u *Srv) newclient(h ClientHandler, c string) Client {
 // SendEvent - Send an event to any clients that are currently blocking for data
 func (u *Srv) SendEvent(file []byte) {
 	for _, name := range u.event {
-		go func() {
-			name <- file
-		}()
+		go func(c chan []byte) {
+			c <- file
+		}(name)
 	}
 }
 
