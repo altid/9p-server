@@ -127,6 +127,8 @@ func (u *Srv) Loop(client ClientHandler) error {
 					t.Ropen(fi, nil)
 				case "title":
 					t.Ropen(fi, nil)
+				case "sidebar":
+					t.Ropen(fi, nil)
 				default:
 					realFile, err := client.ClientOther(fi.name, s.User)
 					if err != nil {
