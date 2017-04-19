@@ -1,7 +1,6 @@
 package ubqtlib
 
 import (
-	"bytes"
 	"errors"
 	"log"
 	"os"
@@ -109,14 +108,7 @@ func (u *Srv) Loop(client ClientHandler) error {
 				case "/":
 					t.Ropen(mkdir(files), nil)
 				case "event":
-					u.Lock()
-					u.event[s.User] = make(chan []byte)
-					u.Unlock()
-					msg := <-u.event[s.User]
-					t.Ropen(bytes.NewReader(msg), nil)
-					u.Lock()
-					delete(u.event, s.User)
-					u.Unlock()
+					t.Ropen(newEvent(u, s.User), nil)
 				case "input":
 					t.Ropen(fi, nil)
 				case "ctl":
