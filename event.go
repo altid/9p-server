@@ -1,14 +1,20 @@
 package ubqtlib
 
+import (
+)
+
 type Event struct {
-	s string
+	data   []byte
+	client string
 	u *Srv
 }
 
 func (e *Event) ReadAt(p []byte, off int64) (int, error) {
-	// Block on read until event occurs
-	buf := <- e.u.event[e.s]
-	n := copy(p, buf[off:])
+	// Block on initial read until event occurs
+	if off == 0 {
+		e.data = <-e.u.event[e.s]
+	}
+	n := copy(p, e.data[off:])
 	return n, nil
 }
 
@@ -19,11 +25,10 @@ func (e *Event) Close() {
 	delete(e.u.event, e.s)
 }
 
-func newEvent(u *Srv, s string) *Event {
+func newEvent(u *Srv, client string) *Event {
 	// Register to event map
 	u.Lock()
-	defer u.Unlock()
-	u.event[s] = make(chan []byte)
-	return &Event{u: u, s: s}
+	u.event[client] = make(chan []byte)
+	u.Unlock()
+	return &Event{u: u, client: client}
 }
-
