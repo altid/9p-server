@@ -97,59 +97,42 @@ func (u *Srv) Loop(client ClientHandler) error {
 			name := path.Base(t.Path())
 			fi, ok := files[name]
 			if !ok {
-				// We're at either /, or an arbitrary file
 				fi = &fakefile{name: name, mtime: time.Now(), handler: client, client: s.User}
 			}
 			switch t := t.(type) {
 			case styx.Twalk:
 				t.Rwalk(fi, nil)
 			case styx.Topen:
-				switch fi.name {
+				switch name {
 				case "/":
 					t.Ropen(mkdir(files), nil)
 				case "event":
 					t.Ropen(newEvent(u, s.User), nil)
-				case "input":
-					t.Ropen(fi, nil)
-				case "ctl":
-					t.Ropen(fi, nil)
-				case "status":
-					t.Ropen(fi, nil)
-				case "tabs":
-					t.Ropen(fi, nil)
-				case "title":
-					t.Ropen(fi, nil)
-				case "sidebar":
+				case "input", "ctl", "status", "tabs", "title", "sidebar":
 					t.Ropen(fi, nil)
 				default:
-					realFile, err := client.ClientOther(fi.name, s.User)
-					if err != nil {
-						t.Rerror("error opening file")
-					}
-					t.Ropen(realFile, nil)
+					fi, _ := client.ClientOther(name, s.User)
+					t.Ropen(fi, nil)
 				}
 			case styx.Tstat:
-				t.Rstat(fi, nil)
+				switch name {
+				case "event":
+					t.Rstat(newEvent(u, s.User), nil)
+				default:
+					t.Rstat(fi, nil)
+				}
 			case styx.Ttruncate:
-				fi.size = t.Size
 				t.Rtruncate(nil)
 			case styx.Tutimes:
-				fi.mtime = t.Mtime
-				fi.atime = t.Atime
 				t.Rutimes(nil)
 			case styx.Tsync:
 				t.Rsync(nil)
 			case styx.Trename:
-				fi.name = path.Base(t.NewPath)
 				t.Rrename(nil)
+			//TODO: Allow the creation of files to be managed by the implementation
 			case styx.Tcreate:
-				if fi.IsDir() {
-					t.Rerror("cannot create directories")
-				} else {
-					t.Rcreate(fi, nil)
-				}
+				t.Rerror("cannot create files")
 			case styx.Tchmod:
-				fi.mode = t.Mode
 				t.Rchmod(nil)
 			}
 		}

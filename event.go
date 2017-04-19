@@ -1,6 +1,8 @@
 package ubqtlib
 
 import (
+	"os"
+	"time"
 )
 
 type Event struct {
@@ -18,6 +20,10 @@ func (e *Event) ReadAt(p []byte, off int64) (int, error) {
 	return n, nil
 }
 
+func (e *Event) WriteAt(p []byte, off int64) (int, error) {
+	return len(p), nil
+}
+
 func (e *Event) Close() {
 	// Remove from event map
 	e.u.Lock()
@@ -25,6 +31,13 @@ func (e *Event) Close() {
 	delete(e.u.event, e.client)
 }
 
+func (e *Event) IsDir() bool { return false }
+func (e *Event) ModTime() time.Time { return time.Now() }
+func (e *Event) Mode() os.FileMode { return 0444 }
+func (e *Event) Name() string { return "event" }
+func (e *Event) Size() int64 { return int64(len(e.data)) }
+func (e *Event) Sys() interface{} { return nil }
+	
 func newEvent(u *Srv, client string) *Event {
 	// Register to event map
 	u.Lock()
