@@ -8,8 +8,8 @@ type Event struct {
 func (e *Event) ReadAt(p []byte, off int64) (int, error) {
 	// Block on read until event occurs
 	buf := <- e.u.event[e.s]
-	n := copy(p, c[off:])
-	return n, err
+	n := copy(p, buf[off:])
+	return n, nil
 }
 
 func (e *Event) Close() {
