@@ -12,6 +12,7 @@ Ensure you have one or more fileservers set up to lay out the directories that u
 ```
 ircfs
 	ctl
+	event
 	foo/
 		feed
 		title
@@ -24,6 +25,7 @@ ircfs
 docfs
 	ctl
 	status
+	event
 	foo/
 		document
 		title
@@ -37,12 +39,9 @@ As can be seen above, the file "status", as well as title, sidebar, input, and c
 
 ### Running
 
-Simply call ubqt-server, with the path of the directories you've set up in the last step.
-
-`ubqt-server -p <port> ~/my/path/to/ircfs ~/my/path/to/docfs` 
-
-It's also possible to call it as follows: `ubqt-server ~/my/path/to`, so you can actively add or remove services while running. 
-By default, ubqt-server will listen on port 564, or whatever is passed in with -p
+9p-server [-d directory] [-p port]
+By default, ubqt-server will listen on port 4567, and watch ~/ubqt
+Any directories created within your directory will be added to an Inotify watch, until such a time as a named file `event` is created. Then the server will tail the event file, receiving updates and synthesizing required files based on that data. If a fileserver is closed, the event file will be removed and that directory will be added back on to the Inotify watch.
 
 ## Notes
 
