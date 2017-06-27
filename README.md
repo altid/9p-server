@@ -39,7 +39,8 @@ As can be seen above, the file "status", as well as title, sidebar, input, and c
 
 ### Running
 
-9p-server [-d directory] [-p port]
+`9p-server [-d directory] [-p port]`
+
 By default, ubqt-server will listen on port 4567, and watch ~/ubqt
 Any directories created within your directory will be added to an Inotify watch, until such a time as a named file `event` is created. Then the server will tail the event file, receiving updates and synthesizing required files based on that data. If a fileserver is closed, the event file will be removed and that directory will be added back on to the Inotify watch.
 
