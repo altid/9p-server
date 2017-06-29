@@ -26,6 +26,7 @@ func main() {
 		os.Exit(1)
 	}
 
+	// Create our watches
 	// Create a default connection
 	// default.buffer = DefaultFile()
 	// Create our fakefile, send it read/write requests
