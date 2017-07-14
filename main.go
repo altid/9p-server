@@ -3,6 +3,7 @@ package main
 import (
 	"flag"
 	"fmt"
+	"log"
 	"os"
 	"path"
 )
@@ -23,11 +24,10 @@ func main() {
 	_, err := os.Stat(*inpath)
 	if err != nil {
 		// TODO: Log fatal error
-		fmt.Printf("directory does not exist: %s\n", *inpath)
-		os.Exit(1)
+		log.Fatalf("directory does not exist: %s\n", *inpath)
 	}
-	// Watch will return an event channel for us to harvest
 	events := Watch()
+	// Intercept events, updating synthesized files for a client and finally write to their event file.
 	for {
 		select {
 		case line := <-events:

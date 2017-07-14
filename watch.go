@@ -1,8 +1,10 @@
 package main
 
+//TODO: When event is deleted, add dir back (if it exists)
 import (
 	"fmt"
 	"io/ioutil"
+	"log"
 	"os"
 	"path"
 
@@ -50,13 +52,12 @@ func addTail(filename string, event chan string, config tail.Config) {
 	t, err := tail.TailFile(filename, config)
 	defer t.Cleanup()
 	if err != nil {
-		//TODO: Log error
-		fmt.Printf("Error in addTail: %s\n", err)
+		log.Printf("Error in addTail: %s\n", err)
 	}
 	for {
 		select {
-		case line := <-t.Lines:
-			event <- line.Text
+		case <-t.Lines:
+			event <- filename
 		}
 	}
 }
@@ -68,8 +69,7 @@ func Watch() chan string {
 	event := make(chan string)
 	watcher, err := fsnotify.NewWatcher()
 	if err != nil {
-		// TODO: Log fatal error
-		fmt.Println("Error occured %s", err)
+		log.Fatalf("Error occured %s", err)
 	}
 	go func() {
 		for {
@@ -85,20 +85,20 @@ func Watch() chan string {
 						}
 						err := watcher.Remove(path.Dir(e.Name))
 						if err != nil {
-							// Log error
-							fmt.Printf("Error removing watch from %s\n", e.Name)
+							log.Printf("Error removing watch from %s\n", e.Name)
 						}
 						go addTail(e.Name, event, *config)
+						event <- e.Name
 						continue
 					}
 					if testEvent(e.Name) {
 						err := watcher.Remove(path.Dir(e.Name))
 						if err != nil {
-							// Log error
-							fmt.Printf("Error removing %s from watch\n", e.Name)
+							log.Printf("Error removing %s from watch\n", e.Name)
 							break
 						}
 						go addTail(e.Name, event, *config)
+						event <- e.Name
 						continue
 					}
 					// If we're here, we can safely add
@@ -106,16 +106,14 @@ func Watch() chan string {
 					watcher.Add(e.Name)
 				}
 			case err := <-watcher.Errors:
-				fmt.Printf("error logged %s\n", err)
-				// TODO: Log error
+				log.Printf("error logged %s\n", err)
 			}
 		}
 	}()
 
 	err = watcher.Add(*inpath)
 	if err != nil {
-		fmt.Printf("error in adding %s\n", *inpath)
-		// TODO: Log fatal error
+		log.Fatalf("error in adding %s\n", *inpath)
 	}
 	// For each directory contained in *inpath, add watch if directory/events is absent
 	files, err := ioutil.ReadDir(*inpath)
