@@ -1,7 +1,6 @@
 package main
 
 type Server struct {
-	
 }
 
 // NewServer returns an initialized server, ready to use

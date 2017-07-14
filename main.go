@@ -22,15 +22,21 @@ func main() {
 	// Verify our directory exists https://stackoverflow.com/questions/10510691/how-to-check-whether-a-file-or-directory-denoted-by-a-path-exists-in-golang
 	_, err := os.Stat(*inpath)
 	if err != nil {
+		// TODO: Log fatal error
 		fmt.Printf("directory does not exist: %s\n", *inpath)
 		os.Exit(1)
 	}
-
-	// Create our watches
+	// Watch will return an event channel for us to harvest
+	events := Watch()
+	for {
+		select {
+		case line := <-events:
+			fmt.Printf("event %s\n", line)
+		}
+	}
 	// Create a default connection
 	// default.buffer = DefaultFile()
 	// Create our fakefile, send it read/write requests
-	// Write all events out to event FIFO
 	// Serve up and listen on port
 	// Client connect gets default.buffer
 }
