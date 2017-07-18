@@ -48,7 +48,7 @@ func testEvent(name string) bool {
 	return true
 }
 
-func addTail(filename string, event chan string, config tail.Config) {
+func addTail(filename string, event chan string, config tail.Config, watcher *fsnotify.Watcher) {
 	t, err := tail.TailFile(filename, config)
 	defer t.Cleanup()
 	if err != nil {
@@ -56,16 +56,20 @@ func addTail(filename string, event chan string, config tail.Config) {
 	}
 	for {
 		select {
+		case <-t.Dead():
+			fmt.Println("dead")
+			break
 		case <-t.Lines:
 			event <- filename
 		}
 	}
+	watcher.Add(path.Dir(filename))
 }
 
 // Watch will observe our directory, tailing any events file that exists within a second-level directory
 func Watch() chan string {
 
-	config := &tail.Config{Follow: true, Location: &tail.SeekInfo{Offset: 0, Whence: os.SEEK_END}, Poll: false, ReOpen: true, Logger: tail.DiscardingLogger}
+	config := &tail.Config{Follow: true, Location: &tail.SeekInfo{Offset: 0, Whence: os.SEEK_END}, Poll: false, MustExist: true, ReOpen: true, Logger: tail.DiscardingLogger}
 	event := make(chan string)
 	watcher, err := fsnotify.NewWatcher()
 	if err != nil {
@@ -87,7 +91,7 @@ func Watch() chan string {
 						if err != nil {
 							log.Printf("Error removing watch from %s\n", e.Name)
 						}
-						go addTail(e.Name, event, *config)
+						go addTail(e.Name, event, *config, watcher)
 						event <- e.Name
 						continue
 					}
@@ -97,13 +101,20 @@ func Watch() chan string {
 							log.Printf("Error removing %s from watch\n", e.Name)
 							break
 						}
-						go addTail(e.Name, event, *config)
+						go addTail(e.Name, event, *config, watcher)
 						event <- e.Name
 						continue
 					}
 					// If we're here, we can safely add
 					//TODO: More testing!
 					watcher.Add(e.Name)
+				// REMOVE
+				case 3:
+						
+					// Remove watch 
+				// RENAME
+				case 4:
+					// Update watch
 				}
 			case err := <-watcher.Errors:
 				log.Printf("error logged %s\n", err)
@@ -126,7 +137,7 @@ func Watch() chan string {
 		case true:
 			// We have a directory with events file already
 			if file.IsDir() {
-				go addTail(path.Join(myfile, "event"), event, *config)
+				go addTail(path.Join(myfile, "event"), event, *config, watcher)
 			}
 		case false:
 			if file.IsDir() {
