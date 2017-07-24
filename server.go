@@ -1,9 +1,9 @@
 package main
 
-type Server struct {
-}
+import (
+	"github.com/mortdeus/go9p/srv"
+)
 
-// NewServer returns an initialized server, ready to use
-func NewServer() *Server {
-	return &Server{}
+func NewSrv() (*srv.Fsrv, error) {
+	
 }

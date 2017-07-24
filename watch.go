@@ -55,6 +55,7 @@ func addTail(filename string, event chan string, config tail.Config, watcher *fs
 		log.Printf("Error in addTail: %s\n", err)
 	}
 	for {
+		//TODO: make sure we add a watch when file is deleted
 		select {
 		case <-t.Dead():
 			fmt.Println("dead")
@@ -109,8 +110,7 @@ func Watch() chan string {
 					//TODO: More testing!
 					watcher.Add(e.Name)
 				// REMOVE
-				case 3:
-						
+				case 3:						
 					// Remove watch 
 				// RENAME
 				case 4:

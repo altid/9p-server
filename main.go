@@ -31,7 +31,7 @@ func main() {
 	for {
 		select {
 		case line := <-events:
-			fmt.Printf("event %s\n", line)
+			fmt.Println(line)
 		}
 	}
 	// Create a default connection
