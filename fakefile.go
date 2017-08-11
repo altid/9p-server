@@ -6,3 +6,13 @@ tabs: will use a map of buffers to synthesize the contents (per client)
 events: will aggregate all events from underlying servers as part of the update mechanism, and will forward anything pertinent to client updates
 all other files are 1:1 passed though
 */
+
+// Add in any file as it becomes useful
+// If our lookup fails, make sure we remove said file
+
+// type for status/title/sidebar/stream/document/feed
+// type for input  <-- can we join these two
+// type for ctl    <-- 
+// type for event (FIFO)
+// type for tabs
+// type for all other files

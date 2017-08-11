@@ -2,15 +2,21 @@ package main
 
 import (
 	"flag"
-	"fmt"
 	"log"
 	"os"
 	"path"
+
+	"github.com/mortdeus/go9p"
+	"github.com/mortdeus/go9p/srv"
 )
 
 var (
 	addr   = flag.String("a", ":4567", "port to listen on")
-	inpath = flag.String("d", path.Join(os.Getenv("HOME"), "ubqt"), "directory to watch")
+	inpath = flag.String("p", path.Join(os.Getenv("HOME"), "ubqt"), "directory to watch")
+	debug = flag.Int("d", 0, "debug level (0-3)")
+	
+	user = flag.String("u", "", "user name")
+	root = new(srv.File)
 )
 
 func main() {
@@ -26,17 +32,21 @@ func main() {
 		// TODO: Log fatal error
 		log.Fatalf("directory does not exist: %s\n", *inpath)
 	}
-	events := Watch()
-	// Intercept events, updating synthesized files for a client and finally write to their event file.
-	for {
-		select {
-		case line := <-events:
-			fmt.Println(line)
-		}
+	err = root.Add(nil, *inpath, go9p.OsUsers.Uname2User(*user), nil, go9p.DMDIR|0777, nil)
+	if err != nil {
+		log.Fatalf("error starting 9p directory: %s\n", err)
 	}
-	// Create a default connection
-	// default.buffer = DefaultFile()
-	// Create our fakefile, send it read/write requests
-	// Serve up and listen on port
-	// Client connect gets default.buffer
+	//events := Watch()
+	// TODO: Map of clients will each recieve event, loop through each client and send event
+	//go DispatchEvents()
+	s := srv.NewFileSrv(root)
+	s.Dotu = true
+	s.Id = "ubqt"
+	s.Debuglevel = *debug
+	s.Start(s)
+	err = s.StartNetListener("tcp", *addr)
+	if err != nil {
+		log.Fatalf("error starting network listener: %s\n", err)
+	}
 }
+
