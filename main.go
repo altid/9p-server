@@ -5,18 +5,13 @@ import (
 	"log"
 	"os"
 	"path"
-
-	"github.com/mortdeus/go9p"
-	"github.com/mortdeus/go9p/srv"
 )
 
 var (
 	addr   = flag.String("a", ":4567", "port to listen on")
 	inpath = flag.String("p", path.Join(os.Getenv("HOME"), "ubqt"), "directory to watch")
-	debug = flag.Int("d", 0, "debug level (0-3)")
-	
-	user = flag.String("u", "", "user name")
-	root = new(srv.File)
+	debug = flag.Int("d", 0, "debug level (0-3)")	
+	username = flag.String("u", "", "user name")
 )
 
 func main() {
@@ -32,18 +27,20 @@ func main() {
 		// TODO: Log fatal error
 		log.Fatalf("directory does not exist: %s\n", *inpath)
 	}
-	err = root.Add(nil, *inpath, go9p.OsUsers.Uname2User(*user), nil, go9p.DMDIR|0777, nil)
-	if err != nil {
-		log.Fatalf("error starting 9p directory: %s\n", err)
-	}
 	//events := Watch()
 	// TODO: Map of clients will each recieve event, loop through each client and send event
 	//go DispatchEvents()
-	s := srv.NewFileSrv(root)
+	s := NewUfs()
 	s.Dotu = true
 	s.Id = "ubqt"
 	s.Debuglevel = *debug
 	s.Start(s)
+	if *username != "" {
+		u := s.Upool.Uname2User(*username)
+		if u == nil {
+			log.Printf("Warning: Adding %v failed", *username)
+		}
+	}
 	err = s.StartNetListener("tcp", *addr)
 	if err != nil {
 		log.Fatalf("error starting network listener: %s\n", err)
