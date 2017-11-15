@@ -24,13 +24,15 @@ func main() {
 	// Verify our directory exists https://stackoverflow.com/questions/10510691/how-to-check-whether-a-file-or-directory-denoted-by-a-path-exists-in-golang
 	_, err := os.Stat(*inpath)
 	if err != nil {
-		// TODO: Log fatal error
 		log.Fatalf("directory does not exist: %s\n", *inpath)
 	}
-	//events := Watch()
-	// TODO: Map of clients will each recieve event, loop through each client and send event
-	//go DispatchEvents()
-	s := NewUfs()
+
+	// This will orchestrate events being sent out on all listeners
+	events := Watch()
+	go DispatchEvents(events)
+
+	// This is the main server
+	s := NewUfs(inpath)
 	s.Dotu = true
 	s.Id = "ubqt"
 	s.Debuglevel = *debug

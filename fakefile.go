@@ -1,3 +1,10 @@
+package main
+
+import (
+	"fmt"
+	"github.com/mortdeus/go9p/srv"
+)
+
 /* Dir
 Normalfiles (
 	ctl
@@ -14,6 +21,9 @@ Normalfiles (
 	// add list of Normalfiles we want to check for
 	// - if file already exists in our dir object, don't add. (map by string)
 */
+type Fakefile struct {
+	name string
+}
 
 func (f *Fakefile) ConnOpened(conn *srv.Conn) {
 	// Handle client setup
@@ -24,20 +34,11 @@ func (f *Fakefile) ConnClosed(conn *srv.Conn) {
 }
 
 func (f *Fakefile) FidDestroy(sfid *srv.Fid) {
-	var fid *Fid
-	
-	if sfid.Aux == nil {
-		return
-	}
-
-	fid = sfid.Aux.(*Fid)
-	if fid.file != nil {
-		fid.file.Close()
-	}
 }
 
 // Attach - Client attaches, set up 
-func (f *Fake) Attach(req *srv.Req) {
+func (f *Fakefile) Attach(req *srv.Req) {
+	fmt.Println("Attached")
 }
 
 // Read - switch for ctl, input, tabs, etc to fabricate content
