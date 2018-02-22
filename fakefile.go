@@ -1,7 +1,7 @@
 package main
 
 import (
-	"fmt"
+	"log"
 	"github.com/mortdeus/go9p/srv"
 )
 
@@ -29,12 +29,18 @@ type Fakefile struct {
 }
 
 func (f *Fakefile) ConnOpened(conn *srv.Conn) {
+	if *debug > 0 {
+		log.Println("Connected")
+	}
 	// TODO: Handle client setup
 	// Client will be handed the default (generally last used) buffer
 	// Requires DefaultFile as well
 }
 
 func (f *Fakefile) ConnClosed(conn *srv.Conn) {
+	if *debug > 0 {
+		log.Println("Disconnected")
+	}
 	// TODO: Handle client cleanup
 }
 
@@ -45,7 +51,9 @@ func (f *Fakefile) FidDestroy(sfid *srv.Fid) {
 // Attach - Client attaches, set up 
 func (f *Fakefile) Attach(req *srv.Req) {
 	// TODO: If we have a qualified path on the attach request, hand client access only to that requested directory
-	fmt.Println("Attached")
+	if *debug > 0 {
+		log.Println("Attached")
+	}
 }
 
 // Read - switch for ctl, input, tabs, etc to fabricate content
