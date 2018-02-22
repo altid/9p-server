@@ -1,12 +1,12 @@
 package main
 
-//TODO: When event is deleted, add dir back (if it exists)
 import (
 	"fmt"
 	"io/ioutil"
 	"log"
 	"os"
 	"path"
+	"time"
 
 	"github.com/fsnotify/fsnotify"
 	"github.com/hpcloud/tail"
@@ -24,17 +24,16 @@ If event is deleted, add back to watch
 We end up with the following structure:
 
 inpath/
-    ircfs/
+    irc/
         event
         ctl
         irc.freenode.net/
         ...
-    webfs/
+    https/
         event
         ctl
-        https/
         ...
-    ...
+    ... (http/docs/images etc)
 
 We let the os handle write contentions on our behalf, and multiple servers can register to listen to these directories (9p, http, circle (from tickit)?)
 File servers should periodically flush their event file as well, to keep the size minimal
@@ -48,18 +47,22 @@ func testEvent(name string) bool {
 	return true
 }
 
+// Using github.com/hpcloud/tail watch file for appended text 
 func addTail(filename string, event chan string, config tail.Config, watcher *fsnotify.Watcher) {
 	t, err := tail.TailFile(filename, config)
 	defer t.Cleanup()
 	if err != nil {
 		log.Printf("Error in addTail: %s\n", err)
+		return
 	}
+	DONE:
 	for {
-		//TODO: make sure we add a watch when file is deleted
 		select {
 		case <-t.Dead():
-			fmt.Println("dead")
-			break
+			// TODO: Read on t.Dying until the tail is properly closed
+			// A timeout is required here until then
+			time.Sleep(100 * time.Millisecond)
+			break DONE // Break from labelled block
 		case <-t.Lines:
 			event <- filename
 		}
@@ -70,7 +73,7 @@ func addTail(filename string, event chan string, config tail.Config, watcher *fs
 // Watch will observe our directory, tailing any events file that exists within a second-level directory
 func Watch() chan string {
 
-	config := &tail.Config{Follow: true, Location: &tail.SeekInfo{Offset: 0, Whence: os.SEEK_END}, Poll: false, MustExist: true, ReOpen: true, Logger: tail.DiscardingLogger}
+	config := &tail.Config{Follow: true, Location: &tail.SeekInfo{Offset: 0, Whence: os.SEEK_END}, Poll: true, MustExist: true, ReOpen: false, Logger: tail.DiscardingLogger}
 	event := make(chan string)
 	watcher, err := fsnotify.NewWatcher()
 	if err != nil {
@@ -107,14 +110,11 @@ func Watch() chan string {
 						continue
 					}
 					// If we're here, we can safely add
-					//TODO: More testing!
 					watcher.Add(e.Name)
-				// REMOVE
 				case 3:						
-					// Remove watch 
-				// RENAME
+					// TODO: REMOVE event - test if directory is still present
 				case 4:
-					// Update watch
+					// TODO: RENAME event - test if directory is still present
 				}
 			case err := <-watcher.Errors:
 				log.Printf("error logged %s\n", err)
@@ -126,6 +126,7 @@ func Watch() chan string {
 	if err != nil {
 		log.Fatalf("error in adding %s\n", *inpath)
 	}
+
 	// For each directory contained in *inpath, add watch if directory/events is absent
 	files, err := ioutil.ReadDir(*inpath)
 	if err != nil {
