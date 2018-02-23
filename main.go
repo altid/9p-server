@@ -31,7 +31,8 @@ func main() {
 	go DispatchEvents(events)
 
 	// This is the main server
-	s := NewUfs(inpath)
+	// TODO: We want to also broadcast our service as 'ubqt'
+	s := NewUbqtfs()
 	s.Dotu = true
 	s.Id = "ubqt"
 	s.Debuglevel = *debug
