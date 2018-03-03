@@ -47,7 +47,7 @@ func testEvent(name string) bool {
 	return true
 }
 
-// Using github.com/hpcloud/tail watch file for appended text 
+// Using github.com/hpcloud/tail watch file for appended text
 func addTail(filename string, event chan string, config tail.Config, watcher *fsnotify.Watcher) {
 	t, err := tail.TailFile(filename, config)
 	defer t.Cleanup()
@@ -55,7 +55,7 @@ func addTail(filename string, event chan string, config tail.Config, watcher *fs
 		log.Printf("Error in addTail: %s\n", err)
 		return
 	}
-	DONE:
+DONE:
 	for {
 		select {
 		case <-t.Dead():
@@ -111,7 +111,7 @@ func Watch() chan string {
 					}
 					// If we're here, we can safely add
 					watcher.Add(e.Name)
-				case 3:						
+				case 3:
 					// TODO: REMOVE event - test if directory is still present
 				case 4:
 					// TODO: RENAME event - test if directory is still present
