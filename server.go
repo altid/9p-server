@@ -167,5 +167,6 @@ func (srv *Server) Serve9P(s *styx.Session) {
 			default:
 				t.Rstat(fi, nil)
 			}
+		}
 	}
 }
