@@ -144,28 +144,37 @@ func (srv *Server) Serve9P(s *styx.Session) {
 		fp := path.Join(*inpath, buffer, t.Path())
 		switch t := t.(type) {
 		case styx.Twalk:
-			switch v := file.(type) {
+			switch file.(type) {
 			case os.FileInfo:
-				t.Rwalk(v, nil)
+				t.Rwalk(os.Stat(fp))
 			default:
 				t.Rwalk(fi, nil)
 			}
 		case styx.Topen:
 			switch v := file.(type) {
 			case os.FileInfo:
-				// TODO: Implement a ctl type to handle our reads/writes
-				t.Ropen(os.OpenFile(fp, os.O_RDWR, 0644 ))
+				t.Ropen(os.OpenFile(fp, t.Flag, 0777))
 			case map[string]interface{}, []interface{}:
 				t.Ropen(mkdir(v), nil)
 			default:
 				t.Ropen(strings.NewReader(fmt.Sprint(v)), nil)
 			}
 		case styx.Tstat:
-			switch v := file.(type) {
+			switch file.(type) {
 			case os.FileInfo:
-				t.Rstat(v, nil)
+				t.Rstat(os.Stat(fp))
 			default:
 				t.Rstat(fi, nil)
+			}
+		case styx.Tsync:
+			switch file.(type) {
+			case os.FileInfo:
+				fi, err := os.Open(fp)
+				defer fi.Close()
+				if err != nil {
+					t.Rerror("%s", err)
+				}
+				t.Rsync(fi.Sync())
 			}
 		}
 	}
