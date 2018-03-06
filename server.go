@@ -7,7 +7,6 @@ import (
 	"os"
 	"path"
 	"sync"
-	"strconv"
 	"strings"
 	
 	"aqwari.net/net/styx"
@@ -52,8 +51,7 @@ func (srv *Server) Tabs() (ret string) {
 }
 // NewServer will return a top-level overview, typically only invoked on server startup listing all current fileservers and a ctl/events structure.
 func NewServer() (*Server) {
-	file := make(map[string]interface{})	
-	// This will lay out our starting page
+	file := make(map[string]interface{})
 	listing := "Welcome to Ubqt! The following servers are available.\n"
 	dirs, err := ioutil.ReadDir(*inpath)
 	if err != nil {
@@ -68,7 +66,7 @@ func NewServer() (*Server) {
 	}
 	file["doc"] = listing
 
-	// We add ctl and events here, but usually they are from a fs. This is only for a first-run
+	// We add ctl and events here, but usually they are from an underlying FS
 	synths := map[string]string {"ctl": "ctl", "event": "event", "tabs": "main"}
 	for s, d := range synths {
 		file[s] = d
@@ -76,11 +74,11 @@ func NewServer() (*Server) {
 	var s struct{}
 	tabs := make(map[string]struct{})
 	tabs["main"] = s
-	
+
 	return &Server{file: file, tabs: tabs}
 }
 
-func newClient(root string, srv *Server) map[string]interface{} {
+func newChrootClient(root string, srv *Server) map[string]interface{} {
 	file := make(map[string]interface{})
 	dir, err := ioutil.ReadDir(path.Join(*inpath, root))
 	if err != nil {
@@ -94,36 +92,27 @@ func newClient(root string, srv *Server) map[string]interface{} {
 	return file
 }
 
-// Walk through directory, check if in path is valid
-// return requested file or dir
 func walkTo(v interface{}, loc string) (interface{}, bool) {
 	cwd := v
 	parts := strings.FieldsFunc(loc, func(r rune) bool {return r == '/' })
-
 	for _, p := range parts {
 		switch v := cwd.(type) {
+		// Dir or synthesized file
 		case map[string]interface{}:
 			if file, ok := v[p]; !ok {
 				return nil, false
 			} else {
 				cwd = file
 			}
-		case []interface{}:
-			i, err := strconv.Atoi(p)
-			if err != nil {
-				return nil, false
-			}
-			if len(v) <= i {
-				return nil, false
-			}
-			cwd = v[i]
 		default:
 			return nil, false
 		}
 	}
+	// File requested is at the end of the tree.
 	return cwd, true
 }
 
+// Serve9P is called by styx.ListenAndServe on a client connection, handling requests for various file operations
 func (srv *Server) Serve9P(s *styx.Session) {
 	buffer := s.Access
 	var client map[string]interface{}
@@ -131,7 +120,7 @@ func (srv *Server) Serve9P(s *styx.Session) {
 		client = make(map[string]interface{})
 		client = srv.file
 	} else {
-		client = newClient(s.Access, srv) 
+		client = newChrootClient(s.Access, srv) 
 	}
 	for s.Next() {
 		t := s.Request()
@@ -140,42 +129,38 @@ func (srv *Server) Serve9P(s *styx.Session) {
 			t.Rerror("No such file or directory")
 			continue
 		}		
-		fi := &stat{name: path.Base(t.Path()), file: &fakefile{v: file}}
-		fp := path.Join(*inpath, buffer, t.Path())
+		var fi os.FileInfo
+		fullPath := path.Join(*inpath, buffer, t.Path())
+		// Decide whether we need a real file or fake one
+		switch t.Path() {
+		case "/input", "/title", "/status", "/feed", "/doc", "/stream", "/tabs", "/events":
+
+			fi, _  = os.Stat(fullPath)
+		case "/ctl":
+			fi = &cstat{name: path.Base(t.Path()), file: &ctl{path: fullPath, v: file}}
+		default:
+			fi = &stat{name: path.Base(t.Path()), file: &fakefile{v: file}}
+		}		
+
+		// Main loop to handle requests
 		switch t := t.(type) {
 		case styx.Twalk:
-			switch file.(type) {
-			case os.FileInfo:
-				t.Rwalk(os.Stat(fp))
-			default:
-				t.Rwalk(fi, nil)
-			}
+			t.Rwalk(fi, nil)
+
 		case styx.Topen:
 			switch v := file.(type) {
+			// Real file
 			case os.FileInfo:
-				t.Ropen(os.OpenFile(fp, t.Flag, 0777))
-			case map[string]interface{}, []interface{}:
+				t.Ropen(os.OpenFile(fullPath, os.O_RDWR, 0755))
+			// Dir file
+			case map[string]interface{}:
 				t.Ropen(mkdir(v), nil)
+			// Synthesized file
 			default:
 				t.Ropen(strings.NewReader(fmt.Sprint(v)), nil)
 			}
 		case styx.Tstat:
-			switch file.(type) {
-			case os.FileInfo:
-				t.Rstat(os.Stat(fp))
-			default:
-				t.Rstat(fi, nil)
-			}
-		case styx.Tsync:
-			switch file.(type) {
-			case os.FileInfo:
-				fi, err := os.Open(fp)
-				defer fi.Close()
-				if err != nil {
-					t.Rerror("%s", err)
-				}
-				t.Rsync(fi.Sync())
-			}
+			t.Rstat(fi, nil)
 		}
 	}
 }
