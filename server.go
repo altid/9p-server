@@ -8,7 +8,7 @@ import (
 	"path"
 	"sync"
 	"strings"
-	
+
 	"aqwari.net/net/styx"
 )
 
@@ -29,7 +29,7 @@ func (srv *Server) OpenTab(name string) {
 }
 
 // CloseTab - remove a buffer from our list of open tabs
-func (srv *Server) CloseTab(name string) { 
+func (srv *Server) CloseTab(name string) {
 	srv.Lock()
 	defer srv.Unlock()
 	if _, ok := srv.tabs[name]; ok {
@@ -37,7 +37,7 @@ func (srv *Server) CloseTab(name string) {
 	}
 }
 
-// UpdateDab - Change the title of the current open tab
+// UpdateTab - Change the title of the current open tab
 func (srv *Server) UpdateTab(oldTab, newTab string) {
 	srv.CloseTab(oldTab)
 	srv.OpenTab(newTab)
@@ -92,29 +92,10 @@ func newChrootClient(root string, srv *Server) map[string]interface{} {
 	return file
 }
 
-func walkTo(v interface{}, loc string) (interface{}, bool) {
-	cwd := v
-	parts := strings.FieldsFunc(loc, func(r rune) bool {return r == '/' })
-	for _, p := range parts {
-		switch v := cwd.(type) {
-		// Dir or synthesized file
-		case map[string]interface{}:
-			if file, ok := v[p]; !ok {
-				return nil, false
-			} else {
-				cwd = file
-			}
-		default:
-			return nil, false
-		}
-	}
-	// File requested is at the end of the tree.
-	return cwd, true
-}
-
 // Serve9P is called by styx.ListenAndServe on a client connection, handling requests for various file operations
 func (srv *Server) Serve9P(s *styx.Session) {
 	buffer := s.Access
+	/* TODO: Switch this shit to use proper os.FileInfo arrays
 	var client map[string]interface{}
 	if s.Access == "" {
 		client = make(map[string]interface{})
@@ -122,35 +103,22 @@ func (srv *Server) Serve9P(s *styx.Session) {
 	} else {
 		client = newChrootClient(s.Access, srv) 
 	}
+	*/
+	// As well, we need an array of files backing
+	// We don't need an interface here, it should be simply os.FileInfo or arrays of them in the case of dir.
+	// We also need our own version of event
 	for s.Next() {
 		t := s.Request()
-		file, ok := walkTo(client, t.Path())
-		if !ok {
-			t.Rerror("No such file or directory")
-			continue
-		}		
-		var fi os.FileInfo
-		fullPath := path.Join(*inpath, buffer, t.Path())
-		// Decide whether we need a real file or fake one
-		switch t.Path() {
-		case "/input", "/title", "/status", "/feed", "/doc", "/stream", "/tabs", "/events":
-
-			fi, _  = os.Stat(fullPath)
-		case "/ctl":
-			fi = &cstat{name: path.Base(t.Path()), file: &ctl{path: fullPath, v: file}}
-		default:
-			fi = &stat{name: path.Base(t.Path()), file: &fakefile{v: file}}
-		}		
-
 		// Main loop to handle requests
 		switch t := t.(type) {
 		case styx.Twalk:
 			t.Rwalk(fi, nil)
-
 		case styx.Topen:
+			// TODO: switch to names here for case
 			switch v := file.(type) {
 			// Real file
 			case os.FileInfo:
+				fullPath := path.Join(*inpath, buffer, t.Path())
 				t.Ropen(os.OpenFile(fullPath, os.O_RDWR, 0755))
 			// Dir file
 			case map[string]interface{}:

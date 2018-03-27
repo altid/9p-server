@@ -1,133 +1,39 @@
 package main
 
-// This file exists at https://github.com/droyo/jsonfs/blob/master/file.go, all credit to @droyo for this. 
 import (
-	"bytes"
-	"errors"
-	"fmt"
 	"io"
+	"io/ioutil"
 	"os"
-	"strconv"
-	"time"
 )
 
-// Interface matching normal files
-type fakefile struct {
-	v      interface{}
-	offset int64
-	set    func(s string)
-}
-
-func (f *fakefile) ReadAt(p []byte, off int64) (int, error) {
-	var s string
-	if v, ok := f.v.(fmt.Stringer); ok {
-		s = v.String()
-	} else {
-		s = fmt.Sprint(f.v)
-	}
-	if off > int64(len(s)) {
-		return 0, io.EOF
-	}
-	n := copy(p, s)
-	return n, nil
-}
-
-func (f *fakefile) WriteAt(p []byte, off int64) (int, error) {
-	// TODO: We need to wrap ctl writes and intercept any server-side commands
-	buf, ok := f.v.(*bytes.Buffer)
-	if !ok {
-		return 0, errors.New("not supported")
-	}
-	if off != f.offset {
-		return 0, errors.New("no seeking")
-	}
-	n, err := buf.Write(p)
-	f.offset += int64(n)
-	return n, err
-}
-
-func (f *fakefile) Close() error {
-	if f.set != nil {
-		f.set(fmt.Sprint(f.v))
-	}
-	return nil
-}
-
-func (f *fakefile) size() int64 {
-	switch f.v.(type) {
-	case map[string]interface{}, []interface{}:
-		return 0
-	}
-	return int64(len(fmt.Sprint(f.v)))
-}
-
-type stat struct {
-	name string
-	file *fakefile
-}
-
-func (s *stat) Name() string     { return s.name }
-func (s *stat) Sys() interface{} { return s.file }
-
-func (s *stat) ModTime() time.Time {
-	return time.Now().Truncate(time.Hour)
-}
-
-func (s *stat) IsDir() bool {
-	return s.Mode().IsDir()
-}
-
-func (s *stat) Mode() os.FileMode {
-	switch s.file.v.(type) {
-	case map[string]interface{}:
-		return os.ModeDir | 0755
-	case []interface{}:
-		return os.ModeDir | 0755
-	}
-	return 0644
-}
-
-func (s *stat) Size() int64 {
-	return s.file.size()
-}
-
 type dir struct {
-	c    chan stat
-	done chan struct{}
+	c	  chan os.FileInfo
+	close chan struct {}
 }
 
-func mkdir(val interface{}) *dir {
+func mkdir(path string) *dir {
 	c := make(chan stat, 10)
 	done := make(chan struct{})
+	list := ioutil.ReadDir(path)
+	// TODO: Investigate how to generate stats for each type
+	ctl := &ctlFile{ ... }
+	event := &eventFile{ ... }
+	append(list, ctl.Stat())
+	append(list, event.Stat())
 	go func() {
-		if m, ok := val.(map[string]interface{}); ok {
-		LoopMap:
-			for name, v := range m {
-				select {
-				case c <- stat{name: name, file: &fakefile{v: v}}:
-				case <-done:
-					break LoopMap
-				}
-			}
-		} else if a, ok := val.([]interface{}); ok {
-		LoopArray:
-			for i, v := range a {
-				name := strconv.Itoa(i)
-				select {
-				case c <- stat{name: name, file: &fakefile{v: v}}:
-				case <-done:
-					break LoopArray
-				}
+		for f := range list {
+			select {
+			case c <- f
+			case <- done:
+				break
 			}
 		}
 		close(c)
 	}()
-	return &dir{
-		c:    c,
-		done: done,
-	}
+	return &dir{ c: c, done: done, }
 }
 
+// Listen for os.FileInfo members to come in from mkdir
 func (d *dir) Readdir(n int) ([]os.FileInfo, error) {
 	var err error
 	fi := make([]os.FileInfo, 0, 10)
