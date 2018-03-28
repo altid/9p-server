@@ -1,10 +1,10 @@
 package main
 
 import (
-	"io/ioutil"
-	"log"
 	"os"
+	"fmt"
 	"path"
+	"path/filepath"
 	"strings"
 )
 
@@ -39,10 +39,26 @@ func OpenFile(name string) (*os.File, error) {
 }
 
 // Grab the first directory from base path, use it as buffer (will have ctl file to write to, useful for :open commands only)
-func DefaultFile() string {
-	files, err := ioutil.ReadDir(*inpath)
+func DefaultBuffer(root string) string {
+	// Recursively walk the tree down until we find a useful file
+	var result string
+	err := filepath.Walk(root, func(fullpath string, info os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+		if info.IsDir() {
+			return nil
+		}
+		
+		switch info.Name() {
+			case "feed", "doc", "stream":
+				result = path.Dir(fullpath)
+		}
+
+		return nil 
+	})
 	if err != nil {
-		log.Fatal(err)
+		fmt.Printf("%s\n", err)
 	}
-	return files[0].Name()
+	return result
 }
