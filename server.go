@@ -35,11 +35,23 @@ func (srv *Server) Serve9P(s *styx.Session) {
 	for s.Next() {
 		t := s.Request()
 		fp := path.Join(srv.client[cid], t.Path())
-		stat, err := os.Stat(fp)
-		// This can happen if we're trying to stat a ctl file, for example
-		if err != nil {
-			stat, _ = os.Stat(getBase(fp))
+		var stat os.FileInfo
+		// Make sure we try to catch most common files
+		switch t.Path() {
+		case "ctl", "event":
+			stat, err = os.Stat(getBase(fp))
+			if err != nil { 
+				//t.Rerror(e)
+				log.Println(err)
+			}
+		default:
+			stat, err = os.Stat(fp)
+			// If we have an error here, try to get a good stat. 
+			if err != nil {
+				stat, _ = os.Stat(getBase(fp))
+			}
 		}
+		
 		switch t := t.(type) {
 		case styx.Twalk:
 			t.Rwalk(stat, nil)
