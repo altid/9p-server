@@ -38,6 +38,7 @@ func (srv *Server) Serve9P(s *styx.Session) {
 		var stat os.FileInfo
 		// Make sure we try to catch most common files
 		switch t.Path() {
+		// TODO: event has a seperate stat from it's own type (For FIFO)
 		case "ctl", "event":
 			stat, err = os.Stat(getBase(fp))
 			if err != nil { 
@@ -48,10 +49,14 @@ func (srv *Server) Serve9P(s *styx.Session) {
 			stat, err = os.Stat(fp)
 			// If we have an error here, try to get a good stat. 
 			if err != nil {
-				stat, _ = os.Stat(getBase(fp))
+				stat, err = os.Stat(getBase(fp))
+				if err != nil {
+					// This is getting rediculous...
+					log.Println(err)
+				}
 			}
 		}
-		
+
 		switch t := t.(type) {
 		case styx.Twalk:
 			t.Rwalk(stat, nil)

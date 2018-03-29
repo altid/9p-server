@@ -21,10 +21,12 @@ func mkdir(filepath string) *dir {
 		return nil
 	}
 	ctl, err := OpenFile(path.Join(filepath, "ctl"))
+	defer ctl.Close()
 	if err != nil {
 		log.Println(err)
 	}
 	event, err := OpenFile(path.Join(filepath, "event"))
+	defer event.Close()
 	if err != nil {
 		log.Println(err)
 	}
@@ -38,6 +40,12 @@ func mkdir(filepath string) *dir {
 		log.Println(err)
 	}
 	list = append(list, eventstat)
+	tab, err := OpenFile(path.Join(filepath, "tabs"))
+	defer tab.Close()
+	if err == nil {
+		tabstat, _ := tab.Stat()
+		list = append(list, tabstat)
+	}
 	go func() {
 		for _, f := range list {
 			select {
