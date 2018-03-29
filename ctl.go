@@ -9,8 +9,10 @@ import (
 	"time"
 )
 
-// TODO: Rename to dir.go, just have it gen for dir. Create ctl, events, and tabs.go to include types and methods on those types for use here
-// Interface matching normal files
+// When we get a `buffer` request, we need a fully qualified name
+// Return an error "did you mean irc.freenode.net/#ubqt?" 
+// The clients themselves can shorten to simply #ubqt - but this starts to add complexity for everything but IRC. A website called from 'home' instead of https://www.mysite.com/home is far too ambiguous. 
+
 type fakefile struct {
 	v      interface{}
 	offset int64

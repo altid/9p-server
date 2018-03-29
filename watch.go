@@ -63,8 +63,8 @@ DONE:
 			// A timeout is required here until then
 			time.Sleep(100 * time.Millisecond)
 			break DONE // Break from labelled block
-		case <-t.Lines:
-			event <- filename
+		case line := <-t.Lines:
+			event <- t.Filename + " " + line.Text
 		}
 	}
 	watcher.Add(path.Dir(filename))

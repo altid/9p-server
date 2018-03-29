@@ -28,9 +28,6 @@ _, err := os.Stat(*inpath)
 		log.Fatalf("directory does not exist: %s\n", *inpath)
 	}
 
-	// This will orchestrate events being sent out on all listeners
-	events := Watch()
-	go DispatchEvents(events)
 
 	// TODO: We want to also broadcast our service as 'ubqt'
 	var styxServer styx.Server
@@ -41,6 +38,10 @@ _, err := os.Stat(*inpath)
 	srv := NewServer()
 	styxServer.Addr = ":"+*addr
 	styxServer.Handler = srv
+	
+	// This will orchestrate events being sent out on all listeners
+	events := Watch()
+	go srv.Dispatch(events)
 
 	log.Fatal(styxServer.ListenAndServe())
 }
