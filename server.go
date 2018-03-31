@@ -64,6 +64,7 @@ func (srv *Server) Serve9P(s *styx.Session) {
 			switch t.Path() {
 			case "/":
 				t.Ropen(mkdir(fp), nil)
+// TODO: Write functions for mkEvent and mkCtl
 //			case "event":
 //				t.Ropen(mkEvent())
 //			case "ctl":

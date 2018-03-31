@@ -28,7 +28,6 @@ _, err := os.Stat(*inpath)
 		log.Fatalf("directory does not exist: %s\n", *inpath)
 	}
 
-
 	// TODO: We want to also broadcast our service as 'ubqt'
 	var styxServer styx.Server
 
