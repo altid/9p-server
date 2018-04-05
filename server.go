@@ -9,26 +9,30 @@ import (
 	"github.com/google/uuid"
 )
 
+type Client struct {
+	buffer string
+	event chan string
+}
+
 // List of clients' current buffers, useful for filtering events that each client receives
 type Server struct {
-	client map[uuid.UUID]string
+	client map[uuid.UUID]*Client
 }
 
 func NewServer() *Server {
-	client := make(map[uuid.UUID]string)
-	return &Server{client: client}
+	return &Server{client: make(map[uuid.UUID]*Client)}
+}
+
+func (srv *Server) newClient(service string) *Client {
+	cid := uuid.New()
+	buffer := DefaultBuffer(service)
+	ch := make(chan string)
+	srv.client[cid] = &Client{ buffer: buffer, event: ch }
+	return srv.client[cid]
 }
 
 // Serve9P is called by styx.ListenAndServe on a client connection, handling requests for various file operations
 func (srv *Server) Serve9P(s *styx.Session) {
-	// Verify service exists (a named directory in *inpath)
-	// TODO: Move this to auth so we can properly fail out.
-	// styx auth any with dp9ik first, followed by 9psk1, followed by cert based auth
-	// TODO: Auth will return a ready `client` type. 
-	// type client struct {
-	//     event chan string
-	//     name string
-	// }
 	service := path.Join(*inpath, s.Access)
 	_, err := os.Stat(service)
 	if err != nil {
@@ -36,13 +40,11 @@ func (srv *Server) Serve9P(s *styx.Session) {
 		return
 	}
 	// Establish initial buffer
-	cid := uuid.New()
-	srv.client[cid] = DefaultBuffer(service)
-	ch := make(chan string)
+	client := srv.newClient(path.Join(*inpath, s.Access))
 
 	for s.Next() {
 		t := s.Request()
-		fp := path.Join(srv.client[cid], t.Path())
+		fp := path.Join(client.buffer, t.Path())
 		var stat os.FileInfo
 		// Make sure we try to catch most common files
 		switch t.Path() {
@@ -72,7 +74,7 @@ func (srv *Server) Serve9P(s *styx.Session) {
 				t.Ropen(mkdir(fp), nil)
 // TODO: Write functions for mkEvent and mkCtl
 			case "/event":
-				t.Ropen(mkEvent(ch))
+				t.Ropen(mkEvent(*client))
 //			case "/ctl":
 //				t.Ropen(mkCtl(fp), nil)
 			default:
