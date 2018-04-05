@@ -14,7 +14,6 @@ type Client struct {
 	event chan string
 }
 
-// List of clients' current buffers, useful for filtering events that each client receives
 type Server struct {
 	client map[uuid.UUID]*Client
 }
@@ -38,15 +37,11 @@ func walkTo(path string) (os.FileInfo, string, error) {
 	// TODO: Implement `stat` type for event
 	case "/ctl":
 		base := getBase(path)
-		cl, err := os.Stat(base)
-		if err != nil {
-			return nil, path, err
-		}
 		ctlfile, err := mkctl(base)
 		if err != nil {
 			return nil, path, err
 		}
-		return &ctlStat{name: "ctl", file: ctlfile, stat: cl, }, base, nil
+		return &ctlStat{name: "ctl", file: ctlfile }, base, nil
 	default:
 		stat, err := os.Stat(path)
 		// If we have an error here, try to get a base-level stat. 
@@ -89,12 +84,19 @@ func (srv *Server) Serve9P(s *styx.Session) {
 			case "/event":
 				t.Ropen(mkevent(*client))
 			case "/ctl":
-				t.Ropen(mkctl(getBase(fp)))
+				t.Ropen(mkctl(fp))
 			default:
-				t.Ropen(os.OpenFile(fp, os.O_RDWR, 0755))
+				t.Ropen(os.OpenFile(fp, t.Flag, 0777))
 			}
 		case styx.Tstat:
 			t.Rstat(stat, nil)
+		// These are handled by the underlying OS calls
+		case styx.Tutimes:
+			t.Rutimes(nil)
+		case styx.Ttruncate:
+			t.Rtruncate(nil)
+		case styx.Tsync:
+			t.Rsync(nil)
 		}
 	}
 }

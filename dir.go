@@ -1,7 +1,6 @@
 package main
 
 import (
-	"log"
 	"path"
 	"io"
 	"io/ioutil"
@@ -20,32 +19,12 @@ func mkdir(filepath string) *dir {
 	if err != nil {
 		return nil
 	}
-	ctl, err := OpenFile(path.Join(filepath, "ctl"))
-	defer ctl.Close()
+	ctlfile, err := mkctl(getBase(path.Join(filepath, "ctl")))
 	if err != nil {
-		log.Println(err)
+		return nil
 	}
-	event, err := OpenFile(path.Join(filepath, "event"))
-	defer event.Close()
-	if err != nil {
-		log.Println(err)
-	}
-	ctlstat, err := ctl.Stat()
-	if err != nil {
-		log.Println(err)
-	}
-	list = append(list, ctlstat)
-	eventstat, err := event.Stat()
-	if err != nil {
-		log.Println(err)
-	}
-	list = append(list, eventstat)
-	tab, err := OpenFile(path.Join(filepath, "tabs"))
-	defer tab.Close()
-	if err == nil {
-		tabstat, _ := tab.Stat()
-		list = append(list, tabstat)
-	}
+	list = append(list, &ctlStat{name: "ctl", file: ctlfile })
+	//list = append(list, &eventStat{}))
 	go func() {
 		for _, f := range list {
 			select {
