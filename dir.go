@@ -12,14 +12,14 @@ type dir struct {
 	done chan struct{}
 }
 
-func mkdir(filepath string) *dir {
+func mkdir(filepath, uid string) *dir {
 	c := make(chan os.FileInfo, 10)
 	done := make(chan struct{})
 	list, err := ioutil.ReadDir(filepath)
 	if err != nil {
 		return nil
 	}
-	ctlfile, err := mkctl(getBase(path.Join(filepath, "ctl")))
+	ctlfile, err := mkctl(getBase(path.Join(filepath, "ctl")), uid)
 	if err != nil {
 		return nil
 	}

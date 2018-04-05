@@ -1,7 +1,6 @@
 package main
 
 import (
-	"log"
 	"os"
 	"path"
 
@@ -31,13 +30,13 @@ func (srv *Server) newClient(service string) *Client {
 }
 
 // Get a useful stat for the requested path
-func walkTo(path string) (os.FileInfo, string, error) {
+func walkTo(path, uid string) (os.FileInfo, string, error) {
 	// We prematurely create a stat type for each file here
 	switch path {
 	// TODO: Implement `stat` type for event
 	case "/ctl":
 		base := getBase(path)
-		ctlfile, err := mkctl(base)
+		ctlfile, err := mkctl(base, uid)
 		if err != nil {
 			return nil, path, err
 		}
@@ -58,18 +57,11 @@ func walkTo(path string) (os.FileInfo, string, error) {
 
 // Serve9P is called by styx.ListenAndServe on a client connection, handling requests for various file operations
 func (srv *Server) Serve9P(s *styx.Session) {
-	service := path.Join(*inpath, s.Access)
-	_, err := os.Stat(service)
-	if err != nil {
-		log.Printf("%s\n", err)
-		return
-	}
-	// Establish initial buffer
 	client := srv.newClient(path.Join(*inpath, s.Access))
 
 	for s.Next() {
 		t := s.Request()
-		stat, fp, err := walkTo(path.Join(client.buffer, t.Path()))
+		stat, fp, err := walkTo(path.Join(client.buffer, t.Path()), s.User)
 		if err != nil {
 			t.Rerror("%s", err)
 			continue
@@ -80,13 +72,13 @@ func (srv *Server) Serve9P(s *styx.Session) {
 		case styx.Topen:
 			switch t.Path() {
 			case "/":
-				t.Ropen(mkdir(fp), nil)
+				t.Ropen(mkdir(fp, s.User), nil)
 			case "/event":
 				t.Ropen(mkevent(*client))
 			case "/ctl":
-				t.Ropen(mkctl(fp))
+				t.Ropen(mkctl(fp, s.User))
 			default:
-				t.Ropen(os.OpenFile(fp, t.Flag, 0777))
+				t.Ropen(os.OpenFile(fp, t.Flag, 0666))
 			}
 		case styx.Tstat:
 			t.Rstat(stat, nil)
