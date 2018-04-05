@@ -22,6 +22,13 @@ func NewServer() *Server {
 // Serve9P is called by styx.ListenAndServe on a client connection, handling requests for various file operations
 func (srv *Server) Serve9P(s *styx.Session) {
 	// Verify service exists (a named directory in *inpath)
+	// TODO: Move this to auth so we can properly fail out.
+	// styx auth any with dp9ik first, followed by 9psk1, followed by cert based auth
+	// TODO: Auth will return a ready `client` type. 
+	// type client struct {
+	//     event chan string
+	//     name string
+	// }
 	service := path.Join(*inpath, s.Access)
 	_, err := os.Stat(service)
 	if err != nil {
@@ -31,6 +38,7 @@ func (srv *Server) Serve9P(s *styx.Session) {
 	// Establish initial buffer
 	cid := uuid.New()
 	srv.client[cid] = DefaultBuffer(service)
+	ch := make(chan string)
 
 	for s.Next() {
 		t := s.Request()
@@ -42,17 +50,15 @@ func (srv *Server) Serve9P(s *styx.Session) {
 		case "ctl", "event":
 			stat, err = os.Stat(getBase(fp))
 			if err != nil { 
-				//t.Rerror(e)
-				log.Println(err)
+				t.Rerror("Error attempting to open file %s", err)
 			}
 		default:
 			stat, err = os.Stat(fp)
-			// If we have an error here, try to get a good stat. 
+			// If we have an error here, try to get a base-level stat. 
 			if err != nil {
 				stat, err = os.Stat(getBase(fp))
 				if err != nil {
-					// This is getting rediculous...
-					log.Println(err)
+					t.Rerror("File requested does not exist %s", err)
 				}
 			}
 		}
@@ -65,9 +71,9 @@ func (srv *Server) Serve9P(s *styx.Session) {
 			case "/":
 				t.Ropen(mkdir(fp), nil)
 // TODO: Write functions for mkEvent and mkCtl
-//			case "event":
-//				t.Ropen(mkEvent())
-//			case "ctl":
+			case "/event":
+				t.Ropen(mkEvent(ch))
+//			case "/ctl":
 //				t.Ropen(mkCtl(fp), nil)
 			default:
 				t.Ropen(os.OpenFile(fp, os.O_RDWR, 0755))

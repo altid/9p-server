@@ -5,10 +5,20 @@ import (
 )
 
 // TODO: Our event fakefile and stat for client-facing FIFO
-// TODO: Will need to make this a server method.
+type Event struct {
+	
+}
+
+// Retern an event type
+// See if we need access to an underlying channel here for the type.
+func mkEvent(ch chan string) (*Event, error) { 
+	return &Event{}, nil
+}
 
 func (srv *Server) Dispatch(events chan string) {
 	// TODO: Events received will update our clients' content
+	// TODO: Test event string against client list
+	// client will match `buffer` of event string to receive the event
 	for {
 		select {
 		case e := <-events:

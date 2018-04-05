@@ -37,6 +37,7 @@ _, err := os.Stat(*inpath)
 	srv := NewServer()
 	styxServer.Addr = ":"+*addr
 	styxServer.Handler = srv
+	//styxServer.Auth = AuthFunc
 	
 	// This will orchestrate events being sent out on all listeners
 	events := Watch()
