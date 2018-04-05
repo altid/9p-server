@@ -31,6 +31,36 @@ func (srv *Server) newClient(service string) *Client {
 	return srv.client[cid]
 }
 
+// Get a useful stat for the requested path
+func walkTo(path string) (os.FileInfo, string, error) {
+	// We prematurely create a stat type for each file here
+	switch path {
+	// TODO: Implement `stat` type for event
+	case "/ctl":
+		base := getBase(path)
+		cl, err := os.Stat(base)
+		if err != nil {
+			return nil, path, err
+		}
+		ctlfile, err := mkctl(base)
+		if err != nil {
+			return nil, path, err
+		}
+		return &ctlStat{name: "ctl", file: ctlfile, stat: cl, }, base, nil
+	default:
+		stat, err := os.Stat(path)
+		// If we have an error here, try to get a base-level stat. 
+		if err != nil {
+			stat, err = os.Stat(getBase(path))
+			if err != nil {
+				return nil, path, err
+			}
+			return stat, getBase(path), nil
+		}
+		return stat, path, nil
+	}
+}
+
 // Serve9P is called by styx.ListenAndServe on a client connection, handling requests for various file operations
 func (srv *Server) Serve9P(s *styx.Session) {
 	service := path.Join(*inpath, s.Access)
@@ -44,27 +74,11 @@ func (srv *Server) Serve9P(s *styx.Session) {
 
 	for s.Next() {
 		t := s.Request()
-		fp := path.Join(client.buffer, t.Path())
-		var stat os.FileInfo
-		// Make sure we try to catch most common files
-		switch t.Path() {
-		// TODO: event has a seperate stat from it's own type (For FIFO)
-		case "ctl", "event":
-			stat, err = os.Stat(getBase(fp))
-			if err != nil { 
-				t.Rerror("Error attempting to open file %s", err)
-			}
-		default:
-			stat, err = os.Stat(fp)
-			// If we have an error here, try to get a base-level stat. 
-			if err != nil {
-				stat, err = os.Stat(getBase(fp))
-				if err != nil {
-					t.Rerror("File requested does not exist %s", err)
-				}
-			}
+		stat, fp, err := walkTo(path.Join(client.buffer, t.Path()))
+		if err != nil {
+			t.Rerror("%s", err)
+			continue
 		}
-
 		switch t := t.(type) {
 		case styx.Twalk:
 			t.Rwalk(stat, nil)
@@ -72,11 +86,10 @@ func (srv *Server) Serve9P(s *styx.Session) {
 			switch t.Path() {
 			case "/":
 				t.Ropen(mkdir(fp), nil)
-// TODO: Write functions for mkEvent and mkCtl
 			case "/event":
-				t.Ropen(mkEvent(*client))
-//			case "/ctl":
-//				t.Ropen(mkCtl(fp), nil)
+				t.Ropen(mkevent(*client))
+			case "/ctl":
+				t.Ropen(mkctl(getBase(fp)))
 			default:
 				t.Ropen(os.OpenFile(fp, os.O_RDWR, 0755))
 			}

@@ -1,93 +1,91 @@
 package main
 
 import (
-	"bytes"
-	"errors"
-	"fmt"
 	"io"
+	"io/ioutil"
 	"os"
 	"time"
 )
 
-// When we get a `buffer` request, we need a fully qualified name
-// Return an error "did you mean irc.freenode.net/#ubqt?" 
-// The clients themselves can shorten to simply #ubqt - but this starts to add complexity for everything but IRC. A website called from 'home' instead of https://www.mysite.com/home is far too ambiguous. 
-
-type fakefile struct {
-	v      interface{}
-	offset int64
-	set    func(s string)
+type ctlFile struct {
+	data chan []byte
+	done chan struct{}
+	size int64
 }
 
-func (f *fakefile) ReadAt(p []byte, off int64) (int, error) {
-	var s string
-	if v, ok := f.v.(fmt.Stringer); ok {
-		s = v.String()
-	} else {
-		s = fmt.Sprint(f.v)
-	}
-	if off > int64(len(s)) {
-		return 0, io.EOF
-	}
-	n := copy(p, s)
-	return n, nil
+func (f *ctlFile) Read(p []byte) (n int, err error) {
+	// TODO: Currently blocking indefinitely
+	var i int
+	for i = 0; i < n; {
+		s, ok := <-f.data
+		if ! ok {
+			return 0, io.EOF
+		}
+		i+=copy(p, s)
+	}	
+	return i, err
 }
 
-func (f *fakefile) WriteAt(p []byte, off int64) (int, error) {
-	// TODO: We need to wrap ctl writes and intercept any server-side commands
-	buf, ok := f.v.(*bytes.Buffer)
-	if !ok {
-		return 0, errors.New("not supported")
-	}
-	if off != f.offset {
-		return 0, errors.New("no seeking")
-	}
-	n, err := buf.Write(p)
-	f.offset += int64(n)
-	return n, err
+func (f *ctlFile) Write(p []byte) (int, error) {
+	// TODO: Read in full input and switch out server commands
+	// Pass through all other writes as a normal write to our type, in f.
+	return 0, nil
 }
 
-func (f *fakefile) Close() error {
-	if f.set != nil {
-		f.set(fmt.Sprint(f.v))
-	}
+func (f *ctlFile) Close() error {
+	close(f.done)
 	return nil
 }
 
-func (f *fakefile) size() int64 {
-	switch f.v.(type) {
-	case map[string]interface{}, []interface{}:
-		return 0
-	}
-	return int64(len(fmt.Sprint(f.v)))
-}
-
-type stat struct {
+type ctlStat struct {
 	name string
-	file *fakefile
+	file *ctlFile
+	stat os.FileInfo
 }
 
-func (s *stat) Name() string     { return s.name }
-func (s *stat) Sys() interface{} { return s.file }
+func (s *ctlStat) Name() string     { return s.name }
+func (s *ctlStat) Sys() interface{} { return s.file }
 
-func (s *stat) ModTime() time.Time {
-	return time.Now().Truncate(time.Hour)
+func (s *ctlStat) ModTime() time.Time {
+	return s.stat.ModTime()
 }
 
-func (s *stat) IsDir() bool {
-	return s.Mode().IsDir()
+func (s *ctlStat) IsDir() bool {
+	return false
 }
 
-func (s *stat) Mode() os.FileMode {
-	switch s.file.v.(type) {
-	case map[string]interface{}:
-		return os.ModeDir | 0755
-	case []interface{}:
-		return os.ModeDir | 0755
+func (s *ctlStat) Mode() os.FileMode {
+	return s.stat.Mode()
+}
+
+func (s *ctlStat) Size() int64 {
+	return s.file.size
+}
+
+// This returns a ready rwc for future reads/writes
+func mkctl(ctl string) (*ctlFile, error) {
+	s, err := os.Stat(ctl)
+	if err != nil {
+		return nil, err
 	}
-	return 0644
-}
-
-func (s *stat) Size() int64 {
-	return s.file.size()
+	data := make(chan []byte)
+	done := make(chan struct{})
+	// TODO: Add our server-specific ctl data to this []byte
+	buff, err := ioutil.ReadFile(ctl)
+	if err != nil {
+		return nil, err
+	}
+	// TODO: Add size of our server-specific ctl data to this total
+	size := s.Size()
+	go func() {
+		for {
+			select {
+			case data <- buff:
+			case <- done:
+				break
+			}
+		}
+		close(data)
+	}()
+	return &ctlFile{data: data, done: done, size: size}, nil
 }
