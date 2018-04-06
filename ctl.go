@@ -1,11 +1,11 @@
 package main
 
 import (
-	"fmt"
+//	"fmt"
 	"io"
 	"io/ioutil"
 	"os"
-	"strings"
+//	"strings"
 	"time"
 )
 
@@ -30,15 +30,16 @@ func (f *ctlFile) Read(p []byte) (n int, err error) {
 
 func (f *ctlFile) Write(p []byte) (int, error) {
 	// Make sure we empty our chan
-	<-f.data	
-	data := string(p[:])
+	<-f.data
+	/*data := string(p[:])
 	switch {
 	case strings.HasPrefix(data, "test"):
 		fmt.Println("test found")
 	}
 	f.off = f.size
 	f.modTime = time.Now().Truncate(time.Hour)
-	return len(data), nil
+	*/
+	return len(p), nil
 }
 
 func (f *ctlFile) Seek(offset int64, whence int) (int64, error) {
@@ -51,8 +52,9 @@ func (f *ctlFile) Seek(offset int64, whence int) (int64, error) {
 		f.off = f.size + offset
 	}
 	// No seeking past EOF
-	if f.off > f.size {
+	if f.off >= f.size {
 		f.off = f.size
+		return 0, io.EOF
 	}
 	return f.off, nil
 }
@@ -64,11 +66,6 @@ func (f *ctlFile) Close() error {
 
 func (f *ctlFile) Uid() string { return f.uid }
 func (f *ctlFile) Gid() string { return f.uid }
-func (f *ctlFile) Muid() string { return f.uid }
-
-func (f *ctlFile) Stat() os.FileInfo {
-	return &ctlStat{ name: "ctl", file: f, }
-}
 
 type ctlStat struct {
 	name string
@@ -109,13 +106,13 @@ func mkctl(ctl, uid string) (*ctlFile, error) {
 	size := len(final)
 	go func() {
 		LOOP:
-		for {
-			select {
-			case data <- final:
-			case <- done:
-				break LOOP
+			for {
+				select {
+				case <-done:
+					break LOOP
+				case data <-final:
+				}
 			}
-		}
 		close(data)
 	}()
 	return &ctlFile{data: data, done: done, size: int64(size), off: 0, modTime: time.Now().Truncate(time.Hour), uid: uid}, nil

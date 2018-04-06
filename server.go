@@ -54,7 +54,8 @@ func walkTo(path, uid string) (os.FileInfo, string, error) {
 		return stat, path, nil
 	}
 }
-
+// TODO: Research if it's worthwhile to switch to a stack. One for ctl, one for event, one for dir, and one for the rest.
+// May be difficult to do bookkeeping between all the different handlers, but it'd keep it much cleaner.
 // Serve9P is called by styx.ListenAndServe on a client connection, handling requests for various file operations
 func (srv *Server) Serve9P(s *styx.Session) {
 	client := srv.newClient(path.Join(*inpath, s.Access))
@@ -78,17 +79,25 @@ func (srv *Server) Serve9P(s *styx.Session) {
 			case "/ctl":
 				t.Ropen(mkctl(fp, s.User))
 			default:
-				t.Ropen(os.OpenFile(fp, t.Flag, 0666))
+				t.Ropen(os.OpenFile(fp, os.O_RDWR|os.O_APPEND, 0666))
 			}
 		case styx.Tstat:
 			t.Rstat(stat, nil)
 		// These are handled by the underlying OS calls
 		case styx.Tutimes:
-			t.Rutimes(nil)
+			switch t.Path() {
+			case "/", "/event", "/ctl":
+				t.Rutimes(nil)
+			default:
+				t.Rutimes(os.Chtimes(fp, t.Atime, t.Mtime))
+			}
 		case styx.Ttruncate:
-			t.Rtruncate(nil)
-		case styx.Tsync:
-			t.Rsync(nil)
+			switch t.Path() {
+			case "/", "/event", "/ctl":
+				t.Rtruncate(nil)
+			default:
+				t.Rtruncate(os.Truncate(fp, t.Size))
+			}
 		}
 	}
 }

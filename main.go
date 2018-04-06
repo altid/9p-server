@@ -7,12 +7,13 @@ import (
 	"path"
 
 	"aqwari.net/net/styx"
+	//"aqwari.net/net/styx/styxauth"
 )
 
 var (
 	addr     = flag.String("a", "4567", "port to listen on")
 	inpath   = flag.String("p", path.Join(os.Getenv("HOME"), "ubqt"), "directory to watch")
-	debug    = flag.Int("d", 0, "debug level (0-3)")
+	debug    = flag.Bool("d", false, "Enable debugging output")
 	username = flag.String("u", "", "user name")
 )
 
@@ -27,21 +28,17 @@ _, err := os.Stat(*inpath)
 	if err != nil {
 		log.Fatalf("directory does not exist: %s\n", *inpath)
 	}
-
-	// TODO: We want to also broadcast our service as 'ubqt'
 	var styxServer styx.Server
-
-	if *debug > 0 {
+	if *debug {
 		styxServer.TraceLog = log.New(os.Stderr, "", 0)
+		styxServer.ErrorLog = log.New(os.Stderr, "", 0)
 	}
 	srv := NewServer()
 	styxServer.Addr = ":"+*addr
 	styxServer.Handler = srv
-	//styxServer.Auth = getAuth()
-	
+	//styxServer.Auth = styxauth.Whitelist(rules)
 	// This will orchestrate events being sent out on all listeners
 	events := Watch()
 	go srv.Dispatch(events)
-
 	log.Fatal(styxServer.ListenAndServe())
 }
