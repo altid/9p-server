@@ -17,6 +17,8 @@ var (
 	username = flag.String("u", "", "user name")
 )
 
+// TODO: Cleanup function
+
 func main() {
 	flag.Parse()
 	if flag.Lookup("h") != nil {

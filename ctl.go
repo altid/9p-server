@@ -1,17 +1,21 @@
 package main
 
 import (
-//	"fmt"
+	"bytes"
+	"fmt"
 	"io"
 	"io/ioutil"
 	"os"
-//	"strings"
+	"path"
+	"regexp"
 	"time"
 )
 
 type ctlFile struct {
 	data chan []byte
 	done chan struct{}
+	err chan error
+	client *Client
 	modTime time.Time
 	size int64
 	off  int64
@@ -31,14 +35,23 @@ func (f *ctlFile) Read(p []byte) (n int, err error) {
 func (f *ctlFile) Write(p []byte) (int, error) {
 	// Make sure we empty our chan
 	<-f.data
-	/*data := string(p[:])
-	switch {
-	case strings.HasPrefix(data, "test"):
-		fmt.Println("test found")
+	// Here we tokenize the input and handle accordingly
+	// Validate we're given a byte array that matches our schema
+	if ok, _ := regexp.Match("buffer *", p); ok {
+		fp := string(bytes.TrimLeft(p, "buffer "))
+		fp = path.Join(f.client.service, fp)
+		_, err := os.Stat(fp)
+		if err != nil {
+			fmt.Println("bad fp")
+		}
+		fmt.Println(fp)
+	} else if ok, _ = regexp.Match("open *", p); ok {
+		fmt.Println("found open")
+	} else if ok, _ = regexp.Match("close *", p); ok {
+		fmt.Println("found close")
 	}
-	f.off = f.size
+	f.off = int64(len(p))
 	f.modTime = time.Now().Truncate(time.Hour)
-	*/
 	return len(p), nil
 }
 
@@ -53,7 +66,7 @@ func (f *ctlFile) Seek(offset int64, whence int) (int64, error) {
 	}
 	// No seeking past EOF
 	if f.off >= f.size {
-		f.off = f.size
+	f.off = f.size
 		return 0, io.EOF
 	}
 	return f.off, nil
@@ -92,9 +105,10 @@ func (s *ctlStat) Size() int64 {
 }
 
 // This returns a ready rwc for future reads/writes
-func mkctl(ctl, uid string) (*ctlFile, error) {
+func mkctl(ctl, uid string, client *Client) (*ctlFile, error) {
 	data := make(chan []byte)
 	done := make(chan struct{})
+	e := make(chan error)
 	// TODO: Add our server-specific ctl data to this []byte
 	final, err := ioutil.ReadFile(ctl)
 	if err != nil {
@@ -115,5 +129,5 @@ func mkctl(ctl, uid string) (*ctlFile, error) {
 			}
 		close(data)
 	}()
-	return &ctlFile{data: data, done: done, size: int64(size), off: 0, modTime: time.Now().Truncate(time.Hour), uid: uid}, nil
+	return &ctlFile{data: data, done: done, err: e, size: int64(size), off: 0, modTime: time.Now().Truncate(time.Hour), uid: uid, client: client}, nil
 }
