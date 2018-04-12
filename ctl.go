@@ -2,9 +2,9 @@ package main
 
 import (
 	"bytes"
-	"fmt"
 	"io"
 	"io/ioutil"
+	//"fmt"
 	"os"
 	"path"
 	"regexp"
@@ -32,27 +32,36 @@ func (f *ctlFile) Read(p []byte) (n int, err error) {
 	return n, err
 }
 
-func (f *ctlFile) Write(p []byte) (int, error) {
+// Path validation is a kludgy mess currently.
+func (f *ctlFile) Write(p []byte) (n int, err error) {
 	// Make sure we empty our chan
 	<-f.data
-	// Here we tokenize the input and handle accordingly
 	// Validate we're given a byte array that matches our schema
 	if ok, _ := regexp.Match("buffer *", p); ok {
+		// Switch to a bytes split instead.
 		fp := string(bytes.TrimLeft(p, "buffer "))
 		fp = path.Join(f.client.service, fp)
-		_, err := os.Stat(fp)
+		_, err = os.Stat(fp)
 		if err != nil {
-			fmt.Println("bad fp")
+			return
 		}
-		fmt.Println(fp)
+		f.client.buffer = path.Dir(fp)
 	} else if ok, _ = regexp.Match("open *", p); ok {
-		fmt.Println("found open")
+		// Switch buffer to request, and send write to underlying ctl
+		fp := string(bytes.TrimLeft(p, "open "))
+		fp = path.Join(f.client.service, fp)
+		err = ioutil.WriteFile(f.client.service, p, 0777)
+		f.client.buffer = path.Dir(fp)
 	} else if ok, _ = regexp.Match("close *", p); ok {
-		fmt.Println("found close")
+		fp := string(bytes.TrimLeft(p, "open "))
+		fp = path.Join(f.client.service, fp)
+		f.client.buffer = DefaultBuffer(f.client.service)
+		err = ioutil.WriteFile(f.client.service, p, 0777)
 	}
 	f.off = int64(len(p))
 	f.modTime = time.Now().Truncate(time.Hour)
-	return len(p), nil
+	n = len(p)
+	return
 }
 
 func (f *ctlFile) Seek(offset int64, whence int) (int64, error) {

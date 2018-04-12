@@ -26,9 +26,8 @@ func main() {
 		os.Exit(0)
 	}
 	// Verify our directory exists https://stackoverflow.com/questions/10510691/how-to-check-whether-a-file-or-directory-denoted-by-a-path-exists-in-golang
-_, err := os.Stat(*inpath)
-	if err != nil {
-		log.Fatalf("directory does not exist: %s\n", *inpath)
+	if _, err := os.Stat(*inpath); os.IsNotExist(err) {
+		log.Fatal(err)
 	}
 	var styxServer styx.Server
 	if *debug {
