@@ -4,10 +4,10 @@ import (
 	"bytes"
 	"io"
 	"io/ioutil"
-	//"fmt"
 	"os"
 	"path"
 	"regexp"
+	"strings"
 	"time"
 )
 
@@ -33,29 +33,33 @@ func (f *ctlFile) Read(p []byte) (n int, err error) {
 }
 
 // Path validation is a kludgy mess currently.
+// Rewrite will use new data structure to clean this up greatly
 func (f *ctlFile) Write(p []byte) (n int, err error) {
 	// Make sure we empty our chan
 	<-f.data
 	// Validate we're given a byte array that matches our schema
 	if ok, _ := regexp.Match("buffer *", p); ok {
-		// Switch to a bytes split instead.
 		fp := string(bytes.TrimLeft(p, "buffer "))
+		fp = strings.Trim(fp, "\n")
 		fp = path.Join(f.client.service, fp)
-		_, err = os.Stat(fp)
-		if err != nil {
+		if _, err = os.Lstat(fp); err != nil {
 			return
 		}
-		f.client.buffer = path.Dir(fp)
+		f.client.buffer = fp
 	} else if ok, _ = regexp.Match("open *", p); ok {
 		// Switch buffer to request, and send write to underlying ctl
 		fp := string(bytes.TrimLeft(p, "open "))
+		fp = strings.Trim(fp, "\n")
 		fp = path.Join(f.client.service, fp)
-		err = ioutil.WriteFile(f.client.service, p, 0777)
+		err = ioutil.WriteFile(path.Join(f.client.service, "ctl"), p, 0777)
 		f.client.buffer = path.Dir(fp)
 	} else if ok, _ = regexp.Match("close *", p); ok {
-		fp := string(bytes.TrimLeft(p, "open "))
+		fp := string(bytes.TrimLeft(p, "close "))
+		fp = strings.Trim(fp, "\n")
 		fp = path.Join(f.client.service, fp)
 		f.client.buffer = DefaultBuffer(f.client.service)
+		err = ioutil.WriteFile(path.Join(f.client.service, "ctl"), p, 0777)
+	} else {
 		err = ioutil.WriteFile(f.client.service, p, 0777)
 	}
 	f.off = int64(len(p))

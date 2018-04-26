@@ -57,8 +57,6 @@ func walkTo(c *Client, filep string, uid string) (os.FileInfo, string, error) {
 	}
 }
 
-// TODO: Research if it's worthwhile to switch to a stack. One for ctl, one for event, one for dir, and one for the rest.
-// May be difficult to do bookkeeping between all the different handlers, but it'd keep it much cleaner.
 // Serve9P is called by styx.ListenAndServe on a client connection, handling requests for various file operations
 func (srv *Server) Serve9P(s *styx.Session) {
 	client := srv.newClient(path.Join(*inpath, s.Access))
