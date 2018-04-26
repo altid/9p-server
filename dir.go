@@ -24,7 +24,11 @@ func mkdir(filepath, uid string, client *Client) *dir {
 		return nil
 	}
 	list = append(list, &ctlStat{name: "ctl", file: ctlfile })
-	//list = append(list, &eventStat{}))
+	eventfile, err := mkevent(uid, client)
+	if err != nil {
+		return nil
+	}
+	list = append(list, &eventStat{name: "event", file: eventfile})
 	go func() {
 		for _, f := range list {
 			select {

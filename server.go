@@ -1,8 +1,10 @@
 package main
 // TODO: There's currently a lot of variable shuffling in order to track our data types. Research using channels to listen on for read/write to and from `files`
 import (
+	"fmt"
 	"os"
 	"path"
+	"sync"
 
 	"aqwari.net/net/styx"
 	"github.com/google/uuid"
@@ -16,6 +18,7 @@ type Client struct {
 
 type Server struct {
 	client map[uuid.UUID]*Client
+	sync.Mutex
 }
 
 func NewServer() *Server {
@@ -35,7 +38,6 @@ func walkTo(c *Client, filep string, uid string) (os.FileInfo, string, error) {
 	// We prematurely create a stat type for each file here
 	fp := path.Join(c.buffer, filep)
 	switch fp {
-	// TODO: Implement `stat` type for event
 	case "/ctl":
 		base := getBase(fp)
 		ctlfile, err := mkctl(base, uid, c)
@@ -43,6 +45,13 @@ func walkTo(c *Client, filep string, uid string) (os.FileInfo, string, error) {
 			return nil, fp, err
 		}
 		return &ctlStat{name: "ctl", file: ctlfile }, base, nil
+	case "/event":
+		base := getBase(fp)
+		eventfile, err := mkevent(uid, c)
+		if err != nil {
+			return nil, fp, err
+		}
+		return &eventStat{name: "event", file: eventfile }, base, nil
 	default:
 		stat, err := os.Stat(fp)
 		// If we have an error here, try to get a base-level stat. 
@@ -76,7 +85,7 @@ func (srv *Server) Serve9P(s *styx.Session) {
 			case "/":
 				t.Ropen(mkdir(fp, s.User, client), nil)
 			case "/event":
-				t.Ropen(mkevent(*client))
+				t.Ropen(mkevent(s.User, client))
 			case "/ctl":
 				t.Ropen(mkctl(fp, s.User, client))
 			default:
@@ -101,4 +110,17 @@ func (srv *Server) Serve9P(s *styx.Session) {
 			}
 		}
 	}
+	// TODO: Close our events channel in events.go instead
+	srv.Lock()
+	<-client.event
+	close(client.event)
+	// Messy sort of cleanup
+	for u, c := range srv.client {
+		if c == client {
+			fmt.Println("Cleanup")
+			delete(srv.client, u)
+			break
+		}
+	}
+	srv.Unlock()
 }
