@@ -9,7 +9,7 @@ type Event struct {
 	
 }
 
-// Retern an event type
+// Return an event type
 // See if we need access to an underlying channel here for the type.
 func mkevent(client Client) (*Event, error) { 
 	return &Event{}, nil

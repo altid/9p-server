@@ -64,7 +64,7 @@ DONE:
 			time.Sleep(100 * time.Millisecond)
 			break DONE // Break from labelled block
 		case line := <-t.Lines:
-			event <- t.Filename + " " + line.Text
+			event <- path.Dir(t.Filename) + "/" + line.Text
 		}
 	}
 	watcher.Add(path.Dir(filename))

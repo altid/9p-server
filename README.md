@@ -38,12 +38,14 @@ docfs
 
 As can be seen above, the file "status", as well as title, sidebar, input, and ctl can exist in both the base of the directory, and in an individual subdirectory. If a file exists in a subdirectory, it will be served with precedence over the base level! This is important, as status will have to be removed from a specific buffer directory if you want to show errors in commands with the base level status file. (Note, you do not need to implement all files, if they don't make sense; nor do they have to exist at all times. Simply put, if they exist at a given time, they will be handed to the client. If they're only relevent 1/10 times, only show it that frequently.)
 
+
 ### Running
 
 `9p-server [-a port] [-d debug level] [-p path] [-u user]`
 
 By default, ubqt-server will listen on port 4567, and watch ~/ubqt
 Any directories created within your directory will be added to an Inotify watch, until such a time as a named file `event` is created. Then the server will tail the event file, receiving updates and synthesizing required files based on that data. If a fileserver is closed, the event file will be removed and that directory will be added back on to the Inotify watch.
+The expectancy is that the string you send as an event will contain the file on which the event occured. For example, if a file is changed, located at `/home/username123/ubqt/irc/irc.freenode.net/#ubqt/title` then the resulting event should contain `irc.freenode.net/#ubqt/title` as the string. (The server is able to complete the rest - at present, this is a hard requirement)
 
 ## Notes
 
