@@ -59,9 +59,9 @@ func (srv *Server) Dispatch(events chan string) {
 			for _, c := range srv.client {
 				switch path.Dir(e) {
 				case c.service: // ctl, tabs
-					c.event <- path.Base(e)
+					c.event <- path.Base(e) + "\n"
 				case c.buffer: // all others
-					c.event <- path.Base(e)
+					c.event <- path.Base(e) + "\n"
 				}
 			}
 		}
