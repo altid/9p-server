@@ -47,6 +47,19 @@ By default, ubqt-server will listen on port 4567, and watch ~/ubqt
 Any directories created within your directory will be added to an Inotify watch, until such a time as a named file `event` is created. Then the server will tail the event file, receiving updates and synthesizing required files based on that data. If a fileserver is closed, the event file will be removed and that directory will be added back on to the Inotify watch.
 The expectancy is that the string you send as an event will contain the file on which the event occured. For example, if a file is changed, located at `/home/username123/ubqt/irc/irc.freenode.net/#ubqt/title` then the resulting event should contain `irc.freenode.net/#ubqt/title` as the string. (The server is able to complete the rest - at present, this is a hard requirement)
 
+### Clients
+
+For the time being, a client must be written as an atomic update from each `event` file read. This means, for each event received all subsequent file reads must happen before `event` is read from again. 
+Internally, the 9p-server uses a queue for events that are handed out, one at a time for each read from `event`; and the reads will block until an event is ready. Currently the library used underneath for 9p doesn't allow multiple reads while one is blocking!
+
+``` sh
+# Example
+while :; do
+	read -r line < ~/path/to/ubqt/event
+	# do something with other files here
+done
+```
+
 ## Notes
 
 This is currently a work in progress, but please do not hesitate to add your advices, opinions, or actual code to the project. A major goal in writing this is to have it approachable for entry level coders and seasoned veterans alike. 

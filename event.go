@@ -7,7 +7,6 @@ import (
 	"path"
 )
 
-// TODO: Our event fakefile and stat for client-facing FIFO
 type Event struct {
 	events chan string
 	done chan struct{}
@@ -15,12 +14,16 @@ type Event struct {
 }
 
 func (f *Event) Read(p []byte) (n int, err error) {
-	s, ok := <- f.events
-	if ! ok { 
-		return 0, io.EOF
+	select {
+		case <- f.done:
+			return 0, io.EOF
+		case s, ok := <- f.events:
+		if ! ok {
+			return 0, io.EOF
+		}
+		n = copy(p, s)
 	}
-	n = copy(p, s)
-	return n, nil
+	return len(p), nil
 }
 
 func (f *Event) Close() error { 
@@ -35,12 +38,13 @@ type eventStat struct {
 	file *Event
 }
 
+// Make the size larger than any conceivable message we'll receive
 func (s *eventStat) Name() string { return s.name }
 func (s *eventStat) Sys() interface{} { return s.file }
 func (s *eventStat) ModTime() time.Time { return time.Now().Truncate(time.Hour) }
 func (s *eventStat) IsDir() bool { return false }
-func (s *eventStat) Mode() os.FileMode { return os.ModeNamedPipe | 0666 }
-func (s *eventStat) Size() int64 { return 0 }
+func (s *eventStat) Mode() os.FileMode { return 0444 }
+func (s *eventStat) Size() int64 { return 1024 }
 
 // Return an event type
 // See if we need access to an underlying channel here for the type.

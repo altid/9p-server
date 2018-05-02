@@ -1,7 +1,6 @@
 package main
 // TODO: There's currently a lot of variable shuffling in order to track our data types. Research using channels to listen on for read/write to and from `files`
 import (
-	"fmt"
 	"os"
 	"path"
 	"sync"
@@ -110,14 +109,12 @@ func (srv *Server) Serve9P(s *styx.Session) {
 			}
 		}
 	}
-	// TODO: Close our events channel in events.go instead
 	srv.Lock()
 	<-client.event
 	close(client.event)
 	// Messy sort of cleanup
 	for u, c := range srv.client {
 		if c == client {
-			fmt.Println("Cleanup")
 			delete(srv.client, u)
 			break
 		}
