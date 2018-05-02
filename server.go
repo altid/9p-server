@@ -1,5 +1,5 @@
 package main
-// TODO: There's currently a lot of variable shuffling in order to track our data types. Research using channels to listen on for read/write to and from `files`
+
 import (
 	"os"
 	"path"

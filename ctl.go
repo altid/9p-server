@@ -122,15 +122,13 @@ func mkctl(ctl, uid string, client *Client) (*ctlFile, error) {
 	data := make(chan []byte)
 	done := make(chan struct{})
 	e := make(chan error)
-	// TODO: Add our server-specific ctl data to this []byte
 	final, err := ioutil.ReadFile(ctl)
 	if err != nil {
 		return nil, err
 	}
-	buff := []byte("Our initial server data\n")
+	// TODO: Revisit what we want the ctlfile to contain
+	buff := []byte("quit\nrestart\n")
 	final = append(buff, final...)
-	// TODO: Add size of our server-specific ctl data to this total
-	size := len(final)
 	go func() {
 		LOOP:
 			for {
@@ -142,5 +140,5 @@ func mkctl(ctl, uid string, client *Client) (*ctlFile, error) {
 			}
 		close(data)
 	}()
-	return &ctlFile{data: data, done: done, err: e, size: int64(size), off: 0, modTime: time.Now().Truncate(time.Hour), uid: uid, client: client}, nil
+	return &ctlFile{data: data, done: done, err: e, size: int64(len(final)), off: 0, modTime: time.Now().Truncate(time.Hour), uid: uid, client: client}, nil
 }
