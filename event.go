@@ -15,9 +15,9 @@ type Event struct {
 
 func (f *Event) Read(p []byte) (n int, err error) {
 	select {
-		case <- f.done:
-			return 0, io.EOF
-		case s, ok := <- f.events:
+	case <-f.done:
+		return 0, io.EOF
+	case s, ok := <- f.events:
 		if ! ok {
 			return 0, io.EOF
 		}
@@ -30,6 +30,7 @@ func (f *Event) Close() error {
 	close(f.done)
 	return nil
 }
+
 func (f *Event) Uid() string { return f.uid }
 func (f *Event) Gid() string { return f.uid }
 

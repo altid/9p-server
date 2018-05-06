@@ -38,6 +38,7 @@ func (f *ctlFile) Write(p []byte) (n int, err error) {
 	// Make sure we empty our chan
 	<-f.data
 	// Validate we're given a byte array that matches our schema
+	// TODO: We need to send event for all new buffer items.
 	if ok, _ := regexp.Match("buffer *", p); ok {
 		fp := string(bytes.TrimLeft(p, "buffer "))
 		fp = strings.Trim(fp, "\n")
