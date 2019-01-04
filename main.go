@@ -38,7 +38,7 @@ func main() {
 	styxServer.Addr = ":"+*addr
 	styxServer.Handler = srv
 	//styxServer.Auth = styxauth.Whitelist(rules)
-	// This will orchestrate events being sent out on all listeners
+	// TODO: listen on a specific IP per connected service, such that we can dial it directly
 	events := Watch()
 	go srv.Dispatch(events)
 	log.Fatal(styxServer.ListenAndServe())

@@ -37,13 +37,13 @@ func walkTo(c *Client, filep string, uid string) (os.FileInfo, string, error) {
 	// We prematurely create a stat type for each file here
 	fp := path.Join(c.buffer, filep)
 	switch fp {
-	case "/ctl":
+	case "/ctrl":
 		base := getBase(fp)
 		ctlfile, err := mkctl(base, uid, c)
 		if err != nil {
 			return nil, fp, err
 		}
-		return &ctlStat{name: "ctl", file: ctlfile }, base, nil
+		return &ctlStat{name: "ctrl", file: ctlfile }, base, nil
 	case "/event":
 		base := getBase(fp)
 		eventfile, err := mkevent(uid, c)
@@ -67,7 +67,8 @@ func walkTo(c *Client, filep string, uid string) (os.FileInfo, string, error) {
 
 // Serve9P is called by styx.ListenAndServe on a client connection, handling requests for various file operations
 func (srv *Server) Serve9P(s *styx.Session) {
-	client := srv.newClient(path.Join(*inpath, s.Access))
+	// TODO: listen on path that maps to IP the request came from
+	client := srv.newClient(path.Join(*inpath, "irc.freenode.net"))
 
 	for s.Next() {
 		t := s.Request()
@@ -78,6 +79,10 @@ func (srv *Server) Serve9P(s *styx.Session) {
 		}
 		switch t := t.(type) {
 		case styx.Twalk:
+			if t.Path() == "/" {
+				t.Rwalk(mkdir(fp, s.User, client), nil)
+				continue
+			}
 			t.Rwalk(stat, nil)
 		case styx.Topen:
 			switch t.Path() {
@@ -85,7 +90,7 @@ func (srv *Server) Serve9P(s *styx.Session) {
 				t.Ropen(mkdir(fp, s.User, client), nil)
 			case "/event":
 				t.Ropen(mkevent(s.User, client))
-			case "/ctl":
+			case "/ctrl":
 				t.Ropen(mkctl(fp, s.User, client))
 			default:
 				t.Ropen(os.OpenFile(fp, os.O_RDWR|os.O_APPEND, 0666))
@@ -95,29 +100,18 @@ func (srv *Server) Serve9P(s *styx.Session) {
 		// These are handled by the underlying OS calls
 		case styx.Tutimes:
 			switch t.Path() {
-			case "/", "/event", "/ctl":
+			case "/", "/event", "/ctrl":
 				t.Rutimes(nil)
 			default:
 				t.Rutimes(os.Chtimes(fp, t.Atime, t.Mtime))
 			}
 		case styx.Ttruncate:
 			switch t.Path() {
-			case "/", "/event", "/ctl":
+			case "/", "/event", "/ctrl":
 				t.Rtruncate(nil)
 			default:
 				t.Rtruncate(os.Truncate(fp, t.Size))
 			}
 		}
 	}
-	srv.Lock()
-	<-client.event
-	close(client.event)
-	// Messy sort of cleanup
-	for u, c := range srv.client {
-		if c == client {
-			delete(srv.client, u)
-			break
-		}
-	}
-	srv.Unlock()
 }
