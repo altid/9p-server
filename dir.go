@@ -1,7 +1,6 @@
 package main
 
 import (
-	"log"
 	"path"
 	"io"
 	"io/ioutil"
@@ -33,7 +32,6 @@ func mkdir(filepath, uid string, client *Client) *dir {
 	list = append(list, &eventStat{name: "event", file: eventfile})
 	go func([]os.FileInfo) {
 		for _, f := range list {
-			log.Print(f.Name() + "\n")
 			select {
 			case c <- f:
 			case <- done:

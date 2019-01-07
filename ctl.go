@@ -130,16 +130,16 @@ func mkctl(ctl, uid string, client *Client) (*ctlFile, error) {
 	// TODO: Revisit what we want the ctlfile to contain
 	buff := []byte("quit\nrestart\n")
 	final = append(buff, final...)
-	go func() {
+	go func(b []byte) {
 		LOOP:
 			for {
 				select {
 				case <-done:
 					break LOOP
-				case data <-final:
+				case data <-b:
 				}
 			}
 		close(data)
-	}()
+	}(final)
 	return &ctlFile{data: data, done: done, err: e, size: int64(len(final)), off: 0, modTime: time.Now().Truncate(time.Hour), uid: uid, client: client}, nil
 }

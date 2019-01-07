@@ -51,7 +51,7 @@ func DefaultBuffer(root string) string {
 		}
 		
 		switch info.Name() {
-			case "feed", "doc", "stream":
+			case "feed", "doc", "stream", "form":
 				result = path.Dir(fullpath)
 		}
 

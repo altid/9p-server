@@ -3,7 +3,6 @@ package main
 import (
 	"os"
 	"path"
-	"sync"
 
 	"aqwari.net/net/styx"
 	"github.com/google/uuid"
@@ -17,7 +16,6 @@ type Client struct {
 
 type Server struct {
 	client map[uuid.UUID]*Client
-	sync.Mutex
 }
 
 func NewServer() *Server {
@@ -68,7 +66,7 @@ func walkTo(c *Client, filep string, uid string) (os.FileInfo, string, error) {
 // Serve9P is called by styx.ListenAndServe on a client connection, handling requests for various file operations
 func (srv *Server) Serve9P(s *styx.Session) {
 	// TODO: listen on path that maps to IP the request came from
-	client := srv.newClient(path.Join(*inpath, "irc.freenode.net"))
+	client := srv.newClient(path.Join(*inpath, s.Access))
 
 	for s.Next() {
 		t := s.Request()
@@ -93,7 +91,7 @@ func (srv *Server) Serve9P(s *styx.Session) {
 			case "/ctrl":
 				t.Ropen(mkctl(fp, s.User, client))
 			default:
-				t.Ropen(os.OpenFile(fp, os.O_RDWR|os.O_APPEND, 0666))
+				t.Ropen(os.OpenFile(fp, os.O_RDWR|os.O_APPEND, 0600))
 			}
 		case styx.Tstat:
 			t.Rstat(stat, nil)
