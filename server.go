@@ -35,6 +35,9 @@ func walkTo(c *Client, filep string, uid string) (os.FileInfo, string, error) {
 	// We prematurely create a stat type for each file here
 	fp := path.Join(c.buffer, filep)
 	switch fp {
+	case "/":
+		stat, err := os.Stat(fp)
+		return stat, fp, err
 	case "/ctrl":
 		base := getBase(fp)
 		ctlfile, err := mkctl(base, uid, c)
@@ -53,34 +56,28 @@ func walkTo(c *Client, filep string, uid string) (os.FileInfo, string, error) {
 		stat, err := os.Stat(fp)
 		// If we have an error here, try to get a base-level stat. 
 		if err != nil {
-			stat, err = os.Stat(getBase(fp))
-			if err != nil {
-				return nil, fp, err
-			}
-			return stat, getBase(fp), nil
+			basefp := getBase(fp)
+			stat, err := os.Stat(basefp)
+			return stat, basefp, err
 		}
 		return stat, fp, nil
 	}
 }
 
-// Serve9P is called by styx.ListenAndServe on a client connection, handling requests for various file operations
+// Main server loop
 func (srv *Server) Serve9P(s *styx.Session) {
 	// TODO: listen on path that maps to IP the request came from
 	client := srv.newClient(path.Join(*inpath, s.Access))
 
 	for s.Next() {
-		t := s.Request()
-		stat, fp, err := walkTo(client, t.Path(), s.User)
+		req := s.Request()
+		stat, fp, err := walkTo(client, req.Path(), s.User)
 		if err != nil {
-			t.Rerror("%s", err)
+			req.Rerror("%s", err)
 			continue
 		}
-		switch t := t.(type) {
+		switch t := req.(type) {
 		case styx.Twalk:
-			if t.Path() == "/" {
-				t.Rwalk(mkdir(fp, s.User, client), nil)
-				continue
-			}
 			t.Rwalk(stat, nil)
 		case styx.Topen:
 			switch t.Path() {
@@ -91,7 +88,7 @@ func (srv *Server) Serve9P(s *styx.Session) {
 			case "/ctrl":
 				t.Ropen(mkctl(fp, s.User, client))
 			default:
-				t.Ropen(os.OpenFile(fp, os.O_RDWR|os.O_APPEND, 0600))
+				t.Ropen(os.OpenFile(fp, os.O_RDWR, 0644))
 			}
 		case styx.Tstat:
 			t.Rstat(stat, nil)

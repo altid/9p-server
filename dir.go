@@ -9,6 +9,7 @@ import (
 )
 
 type dir struct {
+	name string
 	c chan os.FileInfo
 	done chan struct{}
 }
@@ -40,7 +41,11 @@ func mkdir(filepath, uid string, client *Client) *dir {
 		}
 		close(c)
 	}(list)
-	return &dir{ c: c, done: done, }
+	return &dir{
+		c: c,
+		done: done,
+		name: filepath,
+	}
 }
 
 func (d *dir) IsDir() bool {
@@ -52,11 +57,11 @@ func (d *dir) ModTime() time.Time {
 }
 
 func (d *dir) Mode() os.FileMode {
-	return os.ModeDir
+	return os.ModeDir 
 }
 
 func (d *dir) Name() string {
-	return "/"
+	return d.name
 }
 
 func (d *dir) Size() int64 {

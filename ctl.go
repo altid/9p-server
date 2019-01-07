@@ -22,6 +22,7 @@ type ctlFile struct {
 	uid string
 }
 
+//TODO: ReadAt so we can seek
 func (f *ctlFile) Read(p []byte) (n int, err error) {
 	s, ok := <-f.data
 	if ! ok {
@@ -130,6 +131,7 @@ func mkctl(ctl, uid string, client *Client) (*ctlFile, error) {
 	// TODO: Revisit what we want the ctlfile to contain
 	buff := []byte("quit\nrestart\n")
 	final = append(buff, final...)
+	n := len(final)
 	go func(b []byte) {
 		LOOP:
 			for {
@@ -141,5 +143,5 @@ func mkctl(ctl, uid string, client *Client) (*ctlFile, error) {
 			}
 		close(data)
 	}(final)
-	return &ctlFile{data: data, done: done, err: e, size: int64(len(final)), off: 0, modTime: time.Now().Truncate(time.Hour), uid: uid, client: client}, nil
+	return &ctlFile{data: data, done: done, err: e, size: int64(n), off: 0, modTime: time.Now().Truncate(time.Hour), uid: uid, client: client}, nil
 }
