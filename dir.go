@@ -1,16 +1,16 @@
 package main
 
 import (
-	"path"
 	"io"
 	"io/ioutil"
 	"os"
+	"path"
 	"time"
 )
 
 type dir struct {
 	name string
-	c chan os.FileInfo
+	c    chan os.FileInfo
 	done chan struct{}
 }
 
@@ -25,7 +25,7 @@ func mkdir(filepath, uid string, client *Client) *dir {
 	if err != nil {
 		return nil
 	}
-	list = append(list, &ctlStat{name: "ctrl", file: ctlfile })
+	list = append(list, &ctlStat{name: "ctrl", file: ctlfile})
 	eventfile, err := mkevent(uid, client)
 	if err != nil {
 		return nil
@@ -35,14 +35,14 @@ func mkdir(filepath, uid string, client *Client) *dir {
 		for _, f := range list {
 			select {
 			case c <- f:
-			case <- done:
+			case <-done:
 				break
 			}
 		}
 		close(c)
 	}(list)
 	return &dir{
-		c: c,
+		c:    c,
 		done: done,
 		name: filepath,
 	}
@@ -57,7 +57,7 @@ func (d *dir) ModTime() time.Time {
 }
 
 func (d *dir) Mode() os.FileMode {
-	return os.ModeDir 
+	return os.ModeDir
 }
 
 func (d *dir) Name() string {

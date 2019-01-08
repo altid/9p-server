@@ -1,8 +1,8 @@
 package main
 
 import (
-	"os"
 	"fmt"
+	"os"
 	"path"
 	"path/filepath"
 	"strings"
@@ -49,13 +49,13 @@ func DefaultBuffer(root string) string {
 		if info.IsDir() {
 			return nil
 		}
-		
+
 		switch info.Name() {
-			case "feed", "doc", "stream", "form":
-				result = path.Dir(fullpath)
+		case "feed", "doc", "stream", "form":
+			result = path.Dir(fullpath)
 		}
 
-		return nil 
+		return nil
 	})
 	if err != nil {
 		fmt.Printf("%s\n", err)

@@ -35,7 +35,7 @@ func main() {
 		styxServer.ErrorLog = log.New(os.Stderr, "", 0)
 	}
 	srv := NewServer()
-	styxServer.Addr = ":"+*addr
+	styxServer.Addr = ":" + *addr
 	styxServer.Handler = srv
 	//styxServer.Auth = styxauth.Whitelist(rules)
 	// TODO: listen on a specific IP per connected service, such that we can dial it directly

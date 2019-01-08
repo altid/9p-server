@@ -3,22 +3,22 @@ package main
 import (
 	"io"
 	"os"
-	"time"
 	"path"
+	"time"
 )
 
 type Event struct {
 	events chan string
-	done chan struct{}
-	uid string
+	done   chan struct{}
+	uid    string
 }
 
 func (f *Event) Read(p []byte) (n int, err error) {
 	select {
 	case <-f.done:
 		return 0, io.EOF
-	case s, ok := <- f.events:
-		if ! ok {
+	case s, ok := <-f.events:
+		if !ok {
 			return 0, io.EOF
 		}
 		n = copy(p, s)
@@ -26,7 +26,7 @@ func (f *Event) Read(p []byte) (n int, err error) {
 	return len(p), nil
 }
 
-func (f *Event) Close() error { 
+func (f *Event) Close() error {
 	close(f.done)
 	return nil
 }
@@ -40,16 +40,16 @@ type eventStat struct {
 }
 
 // Make the size larger than any conceivable message we'll receive
-func (s *eventStat) Name() string { return s.name }
-func (s *eventStat) Sys() interface{} { return s.file }
+func (s *eventStat) Name() string       { return s.name }
+func (s *eventStat) Sys() interface{}   { return s.file }
 func (s *eventStat) ModTime() time.Time { return time.Now().Truncate(time.Hour) }
-func (s *eventStat) IsDir() bool { return false }
-func (s *eventStat) Mode() os.FileMode { return 0444 }
-func (s *eventStat) Size() int64 { return 1024 }
+func (s *eventStat) IsDir() bool        { return false }
+func (s *eventStat) Mode() os.FileMode  { return 0444 }
+func (s *eventStat) Size() int64        { return 1024 }
 
 // Return an event type
 // See if we need access to an underlying channel here for the type.
-func mkevent(u string, client *Client) (*Event, error) { 
+func mkevent(u string, client *Client) (*Event, error) {
 	done := make(chan struct{})
 	return &Event{uid: u, events: client.event, done: done}, nil
 }

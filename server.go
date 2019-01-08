@@ -9,9 +9,9 @@ import (
 )
 
 type Client struct {
-	buffer string
+	buffer  string
 	service string
-	event chan string
+	event   chan string
 }
 
 type Server struct {
@@ -26,39 +26,38 @@ func (srv *Server) newClient(service string) *Client {
 	cid := uuid.New()
 	buffer := DefaultBuffer(service)
 	ch := make(chan string)
-	srv.client[cid] = &Client{ buffer: buffer, service: service, event: ch }
+	srv.client[cid] = &Client{buffer: buffer, service: service, event: ch}
 	return srv.client[cid]
 }
 
 // Get a useful stat for the requested path
-func walkTo(c *Client, filep string, uid string) (os.FileInfo, string, error) {
-	// We prematurely create a stat type for each file here
-	fp := path.Join(c.buffer, filep)
-	switch fp {
+func walkTo(c *Client, req string, uid string) (os.FileInfo, string, error) {
+	fp := path.Join(c.buffer, req)
+	switch req {
 	case "/":
-		stat, err := os.Stat(fp)
+		stat, err := os.Stat(c.buffer)
 		return stat, fp, err
 	case "/ctrl":
-		base := getBase(fp)
-		ctlfile, err := mkctl(base, uid, c)
+		clientCtl := getBase(fp)
+		ctlfile, err := mkctl(clientCtl, uid, c)
 		if err != nil {
 			return nil, fp, err
 		}
-		return &ctlStat{name: "ctrl", file: ctlfile }, base, nil
+		return &ctlStat{name: "ctrl", file: ctlfile}, clientCtl, nil
 	case "/event":
-		base := getBase(fp)
+		clientEvent := getBase(fp)
 		eventfile, err := mkevent(uid, c)
 		if err != nil {
 			return nil, fp, err
 		}
-		return &eventStat{name: "event", file: eventfile }, base, nil
+		return &eventStat{name: "event", file: eventfile}, clientEvent, nil
 	default:
 		stat, err := os.Stat(fp)
-		// If we have an error here, try to get a base-level stat. 
+		// If we have an error here, try to get a base-level stat.
 		if err != nil {
-			basefp := getBase(fp)
-			stat, err := os.Stat(basefp)
-			return stat, basefp, err
+			clientFp := getBase(fp)
+			stat, err := os.Stat(clientFp)
+			return stat, clientFp, err
 		}
 		return stat, fp, nil
 	}
@@ -68,7 +67,6 @@ func walkTo(c *Client, filep string, uid string) (os.FileInfo, string, error) {
 func (srv *Server) Serve9P(s *styx.Session) {
 	// TODO: listen on path that maps to IP the request came from
 	client := srv.newClient(path.Join(*inpath, s.Access))
-
 	for s.Next() {
 		req := s.Request()
 		stat, fp, err := walkTo(client, req.Path(), s.User)
@@ -92,7 +90,6 @@ func (srv *Server) Serve9P(s *styx.Session) {
 			}
 		case styx.Tstat:
 			t.Rstat(stat, nil)
-		// These are handled by the underlying OS calls
 		case styx.Tutimes:
 			switch t.Path() {
 			case "/", "/event", "/ctrl":
@@ -106,6 +103,14 @@ func (srv *Server) Serve9P(s *styx.Session) {
 				t.Rtruncate(nil)
 			default:
 				t.Rtruncate(os.Truncate(fp, t.Size))
+			}
+		// Clients have the ability to remove notifications
+		case styx.Tremove:
+			switch t.Path() {
+			case "/notify":
+				t.Rremove(os.Remove(fp))
+			default:
+				t.Rerror("%s", "permission denied")
 			}
 		}
 	}
