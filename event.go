@@ -10,6 +10,7 @@ import (
 type Event struct {
 	events chan string
 	done   chan struct{}
+	size   int64
 	uid    string
 }
 
@@ -19,15 +20,14 @@ func (f *Event) Read(p []byte) (n int, err error) {
 		return 0, io.EOF
 	case s, ok := <-f.events:
 		if !ok {
-			return 0, io.EOF
+			return 0, io.EOF	
 		}
 		n = copy(p, s)
 	}
-	return len(p), nil
+	return n, err
 }
 
 func (f *Event) Close() error {
-	close(f.done)
 	return nil
 }
 
@@ -42,16 +42,15 @@ type eventStat struct {
 // Make the size larger than any conceivable message we'll receive
 func (s *eventStat) Name() string       { return s.name }
 func (s *eventStat) Sys() interface{}   { return s.file }
-func (s *eventStat) ModTime() time.Time { return time.Now().Truncate(time.Hour) }
+func (s *eventStat) ModTime() time.Time { return time.Now() }
 func (s *eventStat) IsDir() bool        { return false }
 func (s *eventStat) Mode() os.FileMode  { return 0444 }
-func (s *eventStat) Size() int64        { return 1024 }
+func (s *eventStat) Size() int64        { return s.file.size }
 
 // Return an event type
 // See if we need access to an underlying channel here for the type.
 func mkevent(u string, client *Client) (*Event, error) {
-	done := make(chan struct{})
-	return &Event{uid: u, events: client.event, done: done}, nil
+	return &Event{uid: u, events: client.event, done: client.done}, nil
 }
 
 func (srv *Server) Dispatch(events chan string) {
@@ -62,12 +61,10 @@ func (srv *Server) Dispatch(events chan string) {
 		select {
 		case e := <-events:
 			for _, c := range srv.client {
-				switch path.Dir(e) {
-				case c.service: // ctl, tabs
+				current := path.Join(path.Base(c.service), path.Base(c.buffer))
+				if current == path.Dir(e) {
 					c.event <- path.Base(e) + "\n"
-				case c.buffer: // all others
-					c.event <- path.Base(e) + "\n"
-				}
+				}	
 			}
 		}
 	}

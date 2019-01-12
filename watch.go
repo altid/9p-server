@@ -66,7 +66,7 @@ DONE:
 			time.Sleep(100 * time.Millisecond)
 			break DONE // Break from labelled block
 		case line := <-t.Lines:
-			event <- path.Join(path.Dir(t.Filename), line.Text)
+			event <- line.Text
 		}
 	}
 	watcher.Add(path.Dir(filename))
@@ -75,7 +75,17 @@ DONE:
 // Watch will observe our directory, tailing any events file that exists within a second-level directory
 func Watch() chan string {
 
-	config := &tail.Config{Follow: true, Location: &tail.SeekInfo{Offset: 0, Whence: os.SEEK_END}, Poll: true, MustExist: true, ReOpen: false, Logger: tail.DiscardingLogger}
+	config := &tail.Config{
+		Follow: true, 
+		Location: &tail.SeekInfo{
+			Offset: 0, 
+			Whence: os.SEEK_END,
+		}, 
+		Poll: false, 
+		MustExist: true, 
+		ReOpen: true, 
+		Logger: tail.DiscardingLogger,
+	}
 	event := make(chan string)
 	watcher, err := fsnotify.NewWatcher()
 	if err != nil {
@@ -88,9 +98,9 @@ func Watch() chan string {
 				switch e.Op {
 				// CREATE
 				case 1:
+					// What is the goal here?
 					if path.Dir(e.Name) != *inpath {
-						_, name := path.Split(e.Name)
-						if name != "event" {
+						if path.Base(e.Name) != "event" {
 							continue
 						}
 						err := watcher.Remove(path.Dir(e.Name))

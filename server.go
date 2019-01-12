@@ -12,6 +12,7 @@ type Client struct {
 	buffer  string
 	service string
 	event   chan string
+	done    chan struct{}
 }
 
 type Server struct {
@@ -22,12 +23,28 @@ func NewServer() *Server {
 	return &Server{client: make(map[uuid.UUID]*Client)}
 }
 
-func (srv *Server) newClient(service string) *Client {
+func (srv *Server) newClient(service string) (*Client, uuid.UUID) {
 	cid := uuid.New()
 	buffer := DefaultBuffer(service)
 	ch := make(chan string)
-	srv.client[cid] = &Client{buffer: buffer, service: service, event: ch}
-	return srv.client[cid]
+	done := make(chan struct{})
+	srv.client[cid] = &Client{
+		buffer: buffer,
+		service: service,
+		event: ch,
+		done: done,
+	}
+	go func(c chan string, done chan struct{}) {
+		for {
+			defer close(c)
+			select {
+			case <- done:
+				return
+			}
+		}
+	}(ch, done)
+	return srv.client[cid], cid
+
 }
 
 // Get a useful stat for the requested path
@@ -66,7 +83,9 @@ func walkTo(c *Client, req string, uid string) (os.FileInfo, string, error) {
 // Main server loop
 func (srv *Server) Serve9P(s *styx.Session) {
 	// TODO: listen on path that maps to IP the request came from
-	client := srv.newClient(path.Join(*inpath, s.Access))
+	client, uuid := srv.newClient(path.Join(*inpath, s.Access))
+	defer delete(srv.client, uuid)  
+	defer close(client.done)
 	for s.Next() {
 		req := s.Request()
 		stat, fp, err := walkTo(client, req.Path(), s.User)
@@ -99,7 +118,7 @@ func (srv *Server) Serve9P(s *styx.Session) {
 			}
 		case styx.Ttruncate:
 			switch t.Path() {
-			case "/", "/event", "/ctrl":
+			case "/",  "/event", "/ctrl":
 				t.Rtruncate(nil)
 			default:
 				t.Rtruncate(os.Truncate(fp, t.Size))
