@@ -15,6 +15,7 @@ type Event struct {
 }
 
 func (f *Event) Read(p []byte) (n int, err error) {
+	f.size += int64(len(p)) 
 	select {
 	case <-f.done:
 		return 0, io.EOF
@@ -27,10 +28,7 @@ func (f *Event) Read(p []byte) (n int, err error) {
 	return n, err
 }
 
-func (f *Event) Close() error {
-	return nil
-}
-
+func (f *Event) Close() error { return nil }
 func (f *Event) Uid() string { return f.uid }
 func (f *Event) Gid() string { return f.uid }
 
