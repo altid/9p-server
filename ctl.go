@@ -1,13 +1,11 @@
 package main
 
 import (
-	"bytes"
-	//"fmt"
+	"errors"
 	"io"
 	"io/ioutil"
 	"os"
 	"path"
-	"regexp"
 	"strings"
 	"time"
 )
@@ -29,37 +27,47 @@ func (f *ctlFile) ReadAt(b []byte, off int64) (n int, err error) {
 	return
 }
 
-// Path validation is a kludgy mess currently.
-// Rewrite will use new data structure to clean this up greatly
 func (f *ctlFile) WriteAt(p []byte, off int64) (n int, err error) {
-	// TODO: We need to send event for all new buffer items.
-	if ok, _ := regexp.Match("buffer *", p); ok {
-		fp := string(bytes.TrimLeft(p, "buffer "))
-		fp = strings.Trim(fp, "\n")
-		fp = path.Join(f.client.service, fp)
-		if _, err = os.Lstat(fp); err != nil {
-			return
-		}
-		f.client.buffer = fp
-	} else if ok, _ = regexp.Match("open *", p); ok {
-		// Switch buffer to request, and send write to underlying ctl
-		fp := string(bytes.TrimLeft(p, "open "))
-		fp = strings.Trim(fp, "\n")
-		fp = path.Join(f.client.service, fp)
-		err = ioutil.WriteFile(path.Join(f.client.service, "ctrl"), p, 0644)
-		f.client.buffer = path.Dir(fp)
-	} else if ok, _ = regexp.Match("close *", p); ok {
-		fp := string(bytes.TrimLeft(p, "close "))
-		fp = strings.Trim(fp, "\n")
-		fp = path.Join(f.client.service, fp)
-		f.client.buffer = DefaultBuffer(f.client.service)
-		err = ioutil.WriteFile(path.Join(f.client.service, "ctrl"), p, 0644)
-	} else {
-		err = ioutil.WriteFile(f.client.service, p, 0644)
-	}
+	line := string(p)
+	token := strings.Fields(line)
 	f.modTime = time.Now().Truncate(time.Hour)
-	n = len(p)
-	return
+
+	switch token[0] {
+	case "buffer":
+		if (len(token) < 2) {
+			return 0, errors.New("No buffers specified")
+		}
+		current := path.Join(f.client.service, token[1])
+		if _, err = os.Lstat(current); err != nil {
+			return 0, err
+		}
+		f.client.buffer = current
+		return len(p), nil
+	case "close":
+		if (len(token) < 2) {
+			return 0, errors.New("No buffer specified")
+		}
+		// TODO: Remove from `tabs`
+		f.client.buffer = DefaultBuffer(f.client.service)
+		return len(p), nil
+	case "open", "join":
+		if (len(token) < 2) {
+			return 0, errors.New("No buffer specified")
+		}
+		if err != nil {
+			return 0, err
+		}
+		current := path.Join(f.client.service, token[1])
+		f.client.buffer = current
+	
+	}
+	name := path.Join(f.client.service, "ctrl")
+	fp, err := os.OpenFile(name, os.O_WRONLY|os.O_APPEND, 0644)
+	if err != nil {
+		return 0, err
+	}
+	defer fp.Close()
+	return fp.Write(p)
 }
 
 func (f *ctlFile) Close() error { return nil }
