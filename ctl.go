@@ -47,7 +47,6 @@ func (f *ctlFile) WriteAt(p []byte, off int64) (n int, err error) {
 		if (len(token) < 2) {
 			return 0, errors.New("No buffer specified")
 		}
-		// TODO: Remove from `tabs`
 		f.client.buffer = DefaultBuffer(f.client.service)
 		return len(p), nil
 	case "open", "join":
