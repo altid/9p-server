@@ -12,7 +12,7 @@ import (
 
 type ctlFile struct {
 	data    []byte
-	client  *Client
+	cl      *client
 	modTime time.Time
 	size    int64
 	off     int64
@@ -37,17 +37,17 @@ func (f *ctlFile) WriteAt(p []byte, off int64) (n int, err error) {
 		if (len(token) < 2) {
 			return 0, errors.New("No buffers specified")
 		}
-		current := path.Join(f.client.service, token[1])
+		current := path.Join(f.cl.service, token[1])
 		if _, err = os.Lstat(current); err != nil {
 			return 0, err
 		}
-		f.client.buffer = current
+		f.cl.buffer = current
 		return len(p), nil
 	case "close":
 		if (len(token) < 2) {
 			return 0, errors.New("No buffer specified")
 		}
-		f.client.buffer = DefaultBuffer(f.client.service)
+		f.cl.buffer = defaultBuffer(f.cl.service)
 		return len(p), nil
 	case "open", "join":
 		if (len(token) < 2) {
@@ -56,11 +56,11 @@ func (f *ctlFile) WriteAt(p []byte, off int64) (n int, err error) {
 		if err != nil {
 			return 0, err
 		}
-		current := path.Join(f.client.service, token[1])
-		f.client.buffer = current
+		current := path.Join(f.cl.service, token[1])
+		f.cl.buffer = current
 	
 	}
-	name := path.Join(f.client.service, "ctrl")
+	name := path.Join(f.cl.service, "ctrl")
 	fp, err := os.OpenFile(name, os.O_WRONLY|os.O_APPEND, 0644)
 	if err != nil {
 		return 0, err
@@ -86,7 +86,7 @@ func (s *ctlStat) Mode() os.FileMode  { return 0644 }
 func (s *ctlStat) Size() int64        { return s.file.size }
 
 // This returns a ready rwc for future reads/writes
-func mkctl(ctl, uid string, client *Client) (*ctlFile, error) {
+func mkctl(ctl, uid string, cl *client) (*ctlFile, error) {
 	buff, err := ioutil.ReadFile(ctl)
 	if err != nil {
 		return nil, err
@@ -98,6 +98,6 @@ func mkctl(ctl, uid string, client *Client) (*ctlFile, error) {
 		off:     0,
 		modTime: time.Now(),
 		uid:     uid,
-		client:  client,
+		cl:  cl,
 	}, nil
 }

@@ -7,15 +7,15 @@ import (
 	"time"
 )
 
-type Event struct {
+type event struct {
 	events chan string
 	done   chan struct{}
 	size   int64
 	uid    string
 }
 
-func (f *Event) Read(p []byte) (n int, err error) {
-	f.size += int64(len(p)) 
+func (f *event) Read(p []byte) (n int, err error) {
+	f.size += int64(len(p))
 	select {
 	case <-f.done:
 		return 0, io.EOF
@@ -28,13 +28,13 @@ func (f *Event) Read(p []byte) (n int, err error) {
 	return n, err
 }
 
-func (f *Event) Close() error { return nil }
-func (f *Event) Uid() string { return f.uid }
-func (f *Event) Gid() string { return f.uid }
+func (f *event) Close() error { return nil }
+func (f *event) Uid() string { return f.uid }
+func (f *event) Gid() string { return f.uid }
 
 type eventStat struct {
 	name string
-	file *Event
+	file *event
 }
 
 // Make the size larger than any conceivable message we'll receive
@@ -47,18 +47,19 @@ func (s *eventStat) Size() int64        { return s.file.size }
 
 // Return an event type
 // See if we need access to an underlying channel here for the type.
-func mkevent(u string, client *Client) (*Event, error) {
-	return &Event{uid: u, events: client.event, done: client.done}, nil
+func mkevent(u string, cl *client) (*event, error) {
+	return &event{uid: u, events: cl.event, done: cl.done}, nil
 }
 
-func (srv *Server) Dispatch(events chan string) {
-	// TODO: We need to be able to close here as well.
-	// TODO: Give each client a `done` channel as well to close on sending side
+func (srv *server) dispatch(events chan string) {
+	// TODO: context.Context on srv
 	// client will match `buffer` of event string to receive the event
 	for {
 		select {
+		//case <-srv.ctx.Done()
+		//	break
 		case e := <-events:
-			for _, c := range srv.client {
+			for _, c := range srv.c {
 				current := path.Join(path.Base(c.service), path.Base(c.buffer))
 				if current == path.Dir(e) {
 					c.event <- path.Base(e) + "\n"

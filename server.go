@@ -8,47 +8,47 @@ import (
 	"github.com/google/uuid"
 )
 
-type Client struct {
+type client struct {
 	buffer  string
 	service string
 	event   chan string
 	done    chan struct{}
 }
 
-type Server struct {
-	client map[uuid.UUID]*Client
+type server struct {
+	c map[uuid.UUID]*client
 }
 
-func NewServer() *Server {
-	return &Server{client: make(map[uuid.UUID]*Client)}
+func newServer() *server {
+	return &server{c: make(map[uuid.UUID]*client)}
 }
 
-func (srv *Server) newClient(service string) (*Client, uuid.UUID) {
+func (srv *server) newClient(service string) (*client, uuid.UUID) {
 	cid := uuid.New()
-	buffer := DefaultBuffer(service)
+	buffer := defaultBuffer(service)
 	ch := make(chan string)
 	done := make(chan struct{})
-	srv.client[cid] = &Client{
+	srv.c[cid] = &client{
 		buffer: buffer,
 		service: service,
 		event: ch,
 		done: done,
 	}
-	go func(c chan string, done chan struct{}) {
+	// Make sure we close off events channel when we're done
+	go func(ch chan string, done chan struct{}) {
 		for {
-			defer close(c)
+			defer close(ch)
 			select {
 			case <- done:
 				return
 			}
 		}
 	}(ch, done)
-	return srv.client[cid], cid
+	return srv.c[cid], cid
 
 }
 
-// Get a useful stat for the requested path
-func walkTo(c *Client, req string, uid string) (os.FileInfo, string, error) {
+func walkTo(c *client, req string, uid string) (os.FileInfo, string, error) {
 	fp := path.Join(c.buffer, req)
 	switch req {
 	case "/":
@@ -68,6 +68,7 @@ func walkTo(c *Client, req string, uid string) (os.FileInfo, string, error) {
 			return nil, fp, err
 		}
 		return &eventStat{name: "event", file: eventfile}, clientEvent, nil
+	// TODO: case "tabs":
 	default:
 		stat, err := os.Stat(fp)
 		// If we have an error here, try to get a base-level stat.
@@ -80,11 +81,13 @@ func walkTo(c *Client, req string, uid string) (os.FileInfo, string, error) {
 	}
 }
 
-// Main server loop
-func (srv *Server) Serve9P(s *styx.Session) {
-	// TODO: listen on path that maps to IP the request came from
+// Called when a client connects
+func (srv server) Serve9P(s *styx.Session) {
+	// TODO: Server will contain connection address, which will map to services requested
+	// Choose the first on the list as a default
+	// Server is an aggregate of services based on listen_address
 	client, uuid := srv.newClient(path.Join(*inpath, s.Access))
-	defer delete(srv.client, uuid)  
+	defer delete(srv.c, uuid)  
 	defer close(client.done)
 	for s.Next() {
 		req := s.Request()
@@ -104,6 +107,7 @@ func (srv *Server) Serve9P(s *styx.Session) {
 				t.Ropen(mkevent(s.User, client))
 			case "/ctrl":
 				t.Ropen(mkctl(fp, s.User, client))
+			//case "tabs"
 			default:
 				t.Ropen(os.OpenFile(fp, os.O_RDWR, 0644))
 			}
@@ -123,7 +127,7 @@ func (srv *Server) Serve9P(s *styx.Session) {
 			default:
 				t.Rtruncate(os.Truncate(fp, t.Size))
 			}
-		// Clients have the ability to remove notifications
+		// When clients are done with a notification, they delete it. Allow this
 		case styx.Tremove:
 			switch t.Path() {
 			case "/notify":

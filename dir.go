@@ -14,23 +14,29 @@ type dir struct {
 	done chan struct{}
 }
 
-func mkdir(filepath, uid string, client *Client) *dir {
+func mkdir(filepath, uid string, cl *client) *dir {
 	c := make(chan os.FileInfo, 10)
 	done := make(chan struct{})
 	list, err := ioutil.ReadDir(filepath)
 	if err != nil {
 		return nil
 	}
-	ctlfile, err := mkctl(getBase(path.Join(filepath, "ctrl")), uid, client)
+	ctlfile, err := mkctl(getBase(path.Join(filepath, "ctrl")), uid, cl)
 	if err != nil {
 		return nil
 	}
 	list = append(list, &ctlStat{name: "ctrl", file: ctlfile})
-	eventfile, err := mkevent(uid, client)
+	eventfile, err := mkevent(uid, cl)
 	if err != nil {
 		return nil
 	}
 	list = append(list, &eventStat{name: "event", file: eventfile})
+	// TODO: Tabs
+	//tabsfile, err := mktabs(uid, cl)
+	//if err != nil {
+	//	return nil
+	//}
+	//list = append(list, &tabsStat{name: "tabs", file: tabsfile})
 	go func([]os.FileInfo) {
 		for _, f := range list {
 			select {
