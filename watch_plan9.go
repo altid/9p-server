@@ -62,7 +62,7 @@ func (r *tailReader) Read(p []byte) (n int, err error) {
 }
 
 // walk *inpath every 10 seconds to test for new services with events file
-func Watch() chan string {
+func watchServiceDir() chan string {
 	event := make(chan string)
 	tails := make(map[string]*tail)
 	go func(chan string) {
