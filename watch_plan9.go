@@ -2,6 +2,7 @@ package main
 
 import (
 	"bufio"
+	"context"
 	"io"
 	"log"
 	"os"
@@ -19,24 +20,8 @@ type tailReader struct {
 	io.ReadCloser
 }
 
-// TODO: context.Context for cancellation of these tailers
-// Read for file changes every 300ms
-func (t *tail) start() {
-	reader, err := newTailReader(t.name)
-	if err != nil {
-		log.Print(err)
-		return
-	}
-	go func(rd *tailReader, tl *tail) {
-		scanner := bufio.NewScanner(rd)
-		for scanner.Scan() {
-			tl.event <- scanner.Text()
-		}
-	}(reader, t)
-}
-
-func newTailReader(name string) (*tailReader, error) {
-	f, err := os.OpenFile(name, os.O_CREATE|os.O_RDONLY, 0644)
+func newTailReader(t *tail) (*tailReader, error) {
+	f, err := os.OpenFile(t.name, os.O_CREATE|os.O_RDONLY, 0644)
 	if err != nil {
 		return &tailReader{}, err
 	}
@@ -62,27 +47,61 @@ func (r *tailReader) Read(p []byte) (n int, err error) {
 }
 
 // walk *inpath every 10 seconds to test for new services with events file
-func watchServiceDir() chan string {
+func watchServiceDir(ctx context.Context) chan string {
 	event := make(chan string)
-	tails := make(map[string]*tail)
 	go func(chan string) {
-		glob := path.Join(*inpath, "*", "event")
-		files, err := filepath.Glob(glob)
-		if err != nil {
-			log.Print(err)
-		}
-		for _, file := range files {
-			log.Print(file)
-			if tails[file] == nil {
-				tail := &tail{
-					event: event,
-					name:  file,
-				}
-				tail.start()
-				tails[file] = tail
+		services := make(map[string]*tail)
+		for {
+			glob := path.Join(*inpath, "*", "event")
+			files, _ := filepath.Glob(glob)
+			listeners := findListeners(event, files, services)
+			for _, listener := range listeners {
+				go startListeners(event, listener, ctx)
+			}
+			// Do a timeout here
+			select {
+			case <- ctx.Done():
+				return
+			case <- time.After(10 * time.Second):
+				continue
 			}
 		}
-		time.Sleep(10 * time.Second)
 	}(event)
 	return event
+}
+
+// findListeners will check all files for new listeners
+// It will return an array of any that are found
+func findListeners(event chan string, files []string, services map[string]*tail) []*tailReader {
+	var listeners []*tailReader
+	for _, file := range files {
+		if services[file] != nil {
+			continue
+		}
+		log.Print(file)
+		t := &tail{
+			event: event,
+			name:  file,
+		}
+		reader, err := newTailReader(t)
+		if err != nil {
+			log.Print(err)
+			continue
+		}
+		services[file] = t
+		listeners = append(listeners, reader)
+	}
+	return listeners
+}
+
+func startListeners(event chan string, t *tailReader, ctx context.Context) {
+	scanner := bufio.NewScanner(t)
+	for scanner.Scan() {
+		select {
+		// This will eventually get garbage collected, but close anyways on shutdown
+		case <-ctx.Done():
+			return	
+		case event <- scanner.Text():
+		}
+	}
 }

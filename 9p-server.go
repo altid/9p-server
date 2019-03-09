@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"flag"
 	"log"
 	"os"
@@ -26,9 +27,10 @@ func main() {
 	if _, err := os.Stat(*inpath); os.IsNotExist(err) {
 		log.Fatal(err)
 	}
-
-	services := watchServiceDir()
-
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	services := watchServiceDir(ctx)
+	//TODO: dispatch(services, ctx)
 	// TODO: This goes down into the service loop
 	var styxServer styx.Server
 	// (bug)halfwit: debug causes reads to the control file to hang on some systems
@@ -53,9 +55,14 @@ func main() {
 	// remove watch from watch aggregate
 	// Watch lists delete their own map entry when they exit
 
-	// TODO: srv.dispatch goes away in favour of dispatching here in the main loop off of servicesw
+	// TODO: srv.dispatch goes away in favour of dispatching here in the main loop off of services
+	// On the other hand, we get all the events here. We can just link everything to where it goes in a switch later on
+	// change to a function call with just services. dispatch( ) will call ListenAndServe internally
+	// parse config for all services and make map(ip address) []service
+	// make a service type
+	// It may be good for code clarity to handle dispatch here, instead of a function call
 
-	go srv.dispatch(services)
+	go srv.dispatch(services, ctx)
 
 	// ListenAndServe --> err := Serve(l net.Listener)
 	// l may be TLS or TCP, set address etc (look at ListenAndServeTLS for example)

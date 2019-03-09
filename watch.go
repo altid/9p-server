@@ -72,7 +72,7 @@ DONE:
 // Watch will observe our directory, tailing any events file that exists within a second-level directory
 // This should only send messages when it finds events files back to main loop
 // When we get an event, we will add a tailer there, and set up the Serve().
-func watchServiceDir() chan string {
+func watchServiceDir(ctx context.Context) chan string {
 
 	config := &tail.Config{
 		Follow: true, 
@@ -105,7 +105,6 @@ func watchServiceDir() chan string {
 						if err != nil {
 							log.Printf("Error removing watch from %s\n", e.Name)
 						}
-						// TODO: skip addtail, move to main loop
 						go addTail(e.Name, event, *config, watcher)
 						event <- e.Name
 						continue
@@ -116,7 +115,6 @@ func watchServiceDir() chan string {
 							log.Printf("Error removing %s from watch\n", e.Name)
 							break
 						}
-						// TODO: skip addtail, move to main loop
 						go addTail(e.Name, event, *config, watcher)
 						event <- e.Name
 						continue
@@ -130,6 +128,8 @@ func watchServiceDir() chan string {
 				}
 			case err := <-watcher.Errors:
 				log.Printf("error logged %s\n", err)
+			case <-ctx.Done():
+				return
 			}
 		}
 	}()
@@ -150,7 +150,6 @@ func watchServiceDir() chan string {
 		case true:
 			// We have a directory with events file already
 			if file.IsDir() {
-				// addtail to main event loop
 				go addTail(path.Join(myfile, "event"), event, *config, watcher)
 				event <- myfile
 			}

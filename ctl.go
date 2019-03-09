@@ -28,10 +28,9 @@ func (f *ctlFile) ReadAt(b []byte, off int64) (n int, err error) {
 }
 
 func (f *ctlFile) WriteAt(p []byte, off int64) (n int, err error) {
-	line := string(p)
-	token := strings.Fields(line)
+	token := strings.Fields(string(p))
 	f.modTime = time.Now().Truncate(time.Hour)
-
+	f.off += int64(len(p))
 	switch token[0] {
 	case "buffer":
 		if (len(token) < 2) {
@@ -45,20 +44,20 @@ func (f *ctlFile) WriteAt(p []byte, off int64) (n int, err error) {
 		return len(p), nil
 	case "close":
 		if (len(token) < 2) {
-			return 0, errors.New("No buffer specified")
+			return 0, errors.New("No buffers specified")
 		}
 		f.cl.buffer = defaultBuffer(f.cl.service)
-		return len(p), nil
-	case "open", "join":
+	case "open":
 		if (len(token) < 2) {
-			return 0, errors.New("No buffer specified")
+			return 0, errors.New("No buffers specified")
 		}
-		if err != nil {
-			return 0, err
+		f.cl.buffer = path.Join(f.cl.service, token[1])
+	case "9p":
+		if (len(token) < 2) {
+			return 0, errors.New("No buffers specified")
 		}
-		current := path.Join(f.cl.service, token[1])
-		f.cl.buffer = current
-	
+		f.cl.event <- token[1]
+		return len(p), nil
 	}
 	name := path.Join(f.cl.service, "ctrl")
 	fp, err := os.OpenFile(name, os.O_WRONLY|os.O_APPEND, 0644)
