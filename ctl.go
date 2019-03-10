@@ -52,6 +52,7 @@ func (f *ctlFile) WriteAt(p []byte, off int64) (n int, err error) {
 			return 0, errors.New("No buffers specified")
 		}
 		f.cl.buffer = path.Join(f.cl.service, token[1])
+	// (bug) halfwit: client writes block here
 	case "9p":
 		if (len(token) < 2) {
 			return 0, errors.New("No buffers specified")
@@ -90,7 +91,6 @@ func mkctl(ctl, uid string, cl *client) (*ctlFile, error) {
 	if err != nil {
 		return nil, err
 	}
-	buff = append(buff, []byte("buffer\nopen\nclose\n")...)
 	return &ctlFile{
 		data:    buff,
 		size:    int64(len(buff)),

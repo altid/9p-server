@@ -1,11 +1,8 @@
 package main
 
 import (
-	"context"
 	"io"
-	"log"
 	"os"
-	"path"
 	"time"
 )
 
@@ -51,30 +48,4 @@ func (s *eventStat) Size() int64        { return s.file.size }
 // See if we need access to an underlying channel here for the type.
 func mkevent(u string, cl *client) (*event, error) {
 	return &event{uid: u, events: cl.event, done: cl.done}, nil
-}
-
-func (srv *server) dispatch(events chan string, ctx context.Context) {
-	// TODO: context.Context on srv
-	// client will match `buffer` of event string to receive the event
-	for {
-		select {
-		case <- ctx.Done():
-			break
-		case e := <-events:
-			if e == "quit" {
-				log.Println("quit message received")
-				break
-			}	
-			log.Println(e)
-			for _, c := range srv.c {
-				// Parse ubqt.cfg, make a map[IP] []servers
-				// Find entry based on c's pathings, if server element is nil (which wil be the case until styx starts listening) add the entry and listen, otherwise only dispatch event
-				current := path.Join(path.Base(c.service), path.Base(c.buffer))
-				if current == path.Dir(e) {
-					// Print just the buffname to the clients' event file
-					c.event <- path.Base(e) + "\n"
-				}	
-			}
-		}
-	}
 }

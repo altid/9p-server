@@ -1,164 +1,126 @@
-// +build !plan9
-
 package main
 
+
+// TODO: Clean up flow into simple events loop 
+
 import (
-	"fmt"
-	"io/ioutil"
+	"bufio"
+	"context"
+	"io"
 	"log"
 	"os"
 	"path"
+	"path/filepath"
 	"time"
-
-	"github.com/fsnotify/fsnotify"
-	"github.com/hpcloud/tail"
 )
 
-/*
-Registering a client in a multiple-server paradigm:
-SIGUSR won't work with multiple servers, especially if arbitrarily named
-FIFO won't work, if we have multiple servers digesting them
-Inotify, recursive would be fine likely, but webfs and such will grow well beyond the watch limits
-fs's will append to events - `printf '%s\n' "title" >> event
-If event is deleted, add back to watch
-We end up with the following structure:
-
-inpath/
-    irc.freenode.net
-        event
-        ctrl
-        ...
-    docs
-        event
-        ctrl
-        ...
-    ... somefile/
-
-We let the os handle write contentions on our behalf, and multiple servers can register to listen to these directories (9p, http, circle (from tickit)?)
-File servers should periodically flush their event file as well, to keep the size minimal
-*/
-
-func testEvent(name string) bool {
-	_, err := os.Stat(path.Join(name, "event"))
-	if err != nil {
-		return false
-	}
-	return true
+type tail struct {
+	event chan string
+	name  string
 }
 
-// Using github.com/hpcloud/tail watch file for appended text
-func addTail(filename string, event chan string, config tail.Config, watcher *fsnotify.Watcher) {
-	t, err := tail.TailFile(filename, config)
-	defer t.Cleanup()
+type tailReader struct {
+	io.ReadCloser
+}
+
+func newTailReader(t *tail) (*tailReader, error) {
+	f, err := os.OpenFile(t.name, os.O_CREATE|os.O_RDONLY, 0644)
 	if err != nil {
-		log.Printf("Error in addTail: %s\n", err)
-		return
+		return &tailReader{}, err
 	}
-DONE:
+	if _, err := f.Seek(0, os.SEEK_END); err != nil {
+		return &tailReader{f}, err
+	}
+	return &tailReader{f}, err
+}
+
+func (r *tailReader) Read(p []byte) (n int, err error) {
 	for {
-		select {
-		case <-t.Dead():
-			// TODO: Read on t.Dying until the tail is properly closed
-			// A timeout is required here until then
-			time.Sleep(100 * time.Millisecond)
-			break DONE // Break from labelled block
-		case line := <-t.Lines:
-			event <- line.Text
+		n, err := r.ReadCloser.Read(p)
+		if n > 0 {
+			return n, nil
+		} else if err != io.EOF {
+			return n, err
 		}
+		time.Sleep(300 * time.Millisecond)
 	}
-	watcher.Add(path.Dir(filename))
 }
 
-// Watch will observe our directory, tailing any events file that exists within a second-level directory
-// This should only send messages when it finds events files back to main loop
-// When we get an event, we will add a tailer there, and set up the Serve().
-func watchServiceDir(ctx context.Context) chan string {
+type watcher struct {}
 
-	config := &tail.Config{
-		Follow: true, 
-		Location: &tail.SeekInfo{
-			Offset: 0, 
-			Whence: os.SEEK_END,
-		}, 
-		Poll: false, 
-		MustExist: true, 
-		ReOpen: true, 
-		Logger: tail.DiscardingLogger,
+func dirWatch() (*watcher, chan string) {
+	events := make(chan string)
+	w := &watcher{}
+	return w, events
+}
+
+// walk *inpath every 10 seconds to test for new services with events file
+func (w *watcher) start(event chan string, ctx context.Context) {
+	servlist := make(map[string]*tail)
+	for {
+		findClosed(event, &servlist)
+		listeners := findListeners(event, &servlist)
+		for _, listener := range listeners {
+			go startListeners(event, listener, ctx)
+		}
+		select {
+		case <- ctx.Done():
+			return
+		case <- time.After(10 * time.Second):
+			continue
+		}
 	}
-	event := make(chan string)
-	watcher, err := fsnotify.NewWatcher()
-	if err != nil {
-		log.Fatalf("Error occured %s", err)
-	}
-	go func() {
-		for {
-			select {
-			case e := <-watcher.Events:
-				switch e.Op {
-				// CREATE
-				case 1:
-					if path.Dir(e.Name) != *inpath {
-						if path.Base(e.Name) != "event" {
-							continue
-						}
-						err := watcher.Remove(path.Dir(e.Name))
-						if err != nil {
-							log.Printf("Error removing watch from %s\n", e.Name)
-						}
-						go addTail(e.Name, event, *config, watcher)
-						event <- e.Name
-						continue
-					}
-					if testEvent(e.Name) {
-						err := watcher.Remove(path.Dir(e.Name))
-						if err != nil {
-							log.Printf("Error removing %s from watch\n", e.Name)
-							break
-						}
-						go addTail(e.Name, event, *config, watcher)
-						event <- e.Name
-						continue
-					}
-					// If we're here, we can safely add
-					watcher.Add(e.Name)
-				case 3:
-					// TODO: REMOVE event - test if directory is still present
-				case 4:
-					// TODO: RENAME event - test if directory is still present
-				}
-			case err := <-watcher.Errors:
-				log.Printf("error logged %s\n", err)
-			case <-ctx.Done():
-				return
+}
+
+func findClosed(event chan string, servlist *map[string]*tail) {
+	glob := path.Join(*inpath, "*", "event")
+	files, _ := filepath.Glob(glob)
+LOOP:
+	for sname, _ := range *servlist {
+		for _, file := range files {
+			if file == sname {
+				continue LOOP
 			}
 		}
-	}()
-
-	err = watcher.Add(*inpath)
-	if err != nil {
-		log.Fatalf("error in adding %s\n", *inpath)
+		delete(*servlist, sname)
+		event <- "closed " + sname
 	}
+}
 
-	// For each directory contained in *inpath, add watch if directory/events is absent
-	files, err := ioutil.ReadDir(*inpath)
-	if err != nil {
-		fmt.Printf("error listing files in %s\n", *inpath)
-	}
+func findListeners(event chan string, servlist *map[string]*tail) []*tailReader {
+	var listeners []*tailReader
+	glob := path.Join(*inpath, "*", "event")
+	files, _ := filepath.Glob(glob)
+	s := *servlist
 	for _, file := range files {
-		myfile := path.Join(*inpath, file.Name())
-		switch testEvent(myfile) {
-		case true:
-			// We have a directory with events file already
-			if file.IsDir() {
-				go addTail(path.Join(myfile, "event"), event, *config, watcher)
-				event <- myfile
-			}
-		case false:
-			if file.IsDir() {
-				watcher.Add(myfile)
-			}
-			// We happily ignore any normal file in our base dir
+		if s[file] != nil {
+			continue
+		}
+		t := &tail{
+			event: event,
+			name:  file,
+		}
+		reader, err := newTailReader(t)
+		if err != nil {
+			log.Print(err)
+			continue
+		}
+		s[file] = t
+		listeners = append(listeners, reader)
+		event <- "new " + path.Dir(file)
+	}
+	*servlist = s
+	return listeners
+}
+
+func startListeners(event chan string, t *tailReader, ctx context.Context) {
+	scanner := bufio.NewScanner(t)
+	for scanner.Scan() {
+		select {
+		case <-ctx.Done():
+			return	
+		case event <- scanner.Text():
 		}
 	}
-	return event
+	log.Println("Ended that scanner")
 }

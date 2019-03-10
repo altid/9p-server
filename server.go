@@ -20,7 +20,9 @@ type server struct {
 }
 
 func newServer() *server {
-	return &server{c: make(map[uuid.UUID]*client)}
+	return &server{
+		c: make(map[uuid.UUID]*client),
+	}
 }
 
 func (srv *server) newClient(service string) (*client, uuid.UUID) {
