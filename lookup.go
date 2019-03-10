@@ -6,6 +6,9 @@ import (
 	"path"
 	"path/filepath"
 	"strings"
+
+	"github.com/mischief/ndb"
+	"github.com/ubqt-systems/fslib"
 )
 
 // getBase will see if file exists at base of current file server
@@ -52,4 +55,24 @@ func defaultBuffer(root string) string {
 		fmt.Printf("%s\n", err)
 	}
 	return result
+}
+
+// Look up any listen_address entry, return if found
+// If entry is nil, return default
+func findListenAddress(service string) string {
+	listen_address := ":564"
+	confdir, err := fslib.UserConfDir()
+	if err != nil {
+		return listen_address
+	}
+	conf, err := ndb.Open(path.Join(confdir, "ubqt.cfg"))
+	if err != nil {
+		return listen_address
+	}
+	service = path.Base(service)
+	listen_address = conf.Search("service", service).Search("listen_address")
+	if listen_address == "" {
+		return ":564"
+	}
+	return listen_address
 }

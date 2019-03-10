@@ -6,37 +6,14 @@ import (
 	"path"
 	"strings"
 
-	//"aqwari.net/net/styx"
+	"aqwari.net/net/styx"
 )
-
-/*
-	var styxServer styx.Server
-	// (bug)halfwit: debug causes reads to the control file to hang on some systems
-	if *debug {
-		styxServer.TraceLog = log.New(os.Stderr, "", 0)
-		styxServer.ErrorLog = log.New(os.Stderr, "", 0)
-	}
-
-	styxServer.Addr = ":" + *addr
-
-	// TODO (after dispatch) styxServer.Handler := newServer()
-	styxServer.Handler = srv
-	//styxServer.Auth = styxauth.Whitelist(rules)
-
-
-	// ListenAndServe --> err := Serve(l net.Listener)
-	// l may be TLS or TCP, set address etc (look at ListenAndServeTLS for example)
-	log.Fatal(styxServer.ListenAndServe())
-}
-*/
 
 type servlist struct {
 	servers map[string]*server
 }
 
 func dispatchAndServe(events chan string, ctx context.Context) {
-	// TODO: context.Context on srv
-	// client will match `buffer` of event string to receive the event
 	s := &servlist{
 		servers: make(map[string]*server),
 	}
@@ -50,16 +27,42 @@ func dispatchAndServe(events chan string, ctx context.Context) {
 			case "quit":
 				return
 			case "new":
-				log.Printf("%s", e)
-				//startService(token[1], ctx)
+				s.startService(token[1], ctx)
 			case "closed":
-				log.Printf("closed %s", e)
-				//stopService(token[1])
+				s.stopService(token[1])
 			default:
 				s.sendEvent(e)
 			}
 		}
 	}
+}
+
+func (sl *servlist) startService(service string, ctx context.Context) {
+	addr := findListenAddress(service)
+	if sl.servers[addr] != nil { // Server already exists
+		return
+	}
+	srv, err := newServer(addr)
+	if err != nil {
+		return
+	}
+	styx := styx.Server{
+		Addr: addr,
+		Handler: srv,
+		//Auth: styxauth.TLS,
+		//TLSConfig: 
+	}
+	go styx.Serve(srv.l)
+	sl.servers[addr] = srv
+}
+
+func (servlist *servlist) stopService(service string) {
+	addr := findListenAddress(service)
+	srv := servlist.servers[addr]
+	if srv != nil {
+		srv.l.Close()
+	}
+	delete(servlist.servers, addr)
 }
 
 func findServer(s *servlist, e string) *server {
@@ -69,11 +72,7 @@ func findServer(s *servlist, e string) *server {
 			return s.servers[dir]
 		}
 	}
-	log.Println(path.Dir(e))
-	//dirs = path.Dir(e)
-	//if s.servers[dirs] != nil {
-	//	return s.servers.dir
-	//}
+	log.Println("not found " + e)
 	return nil
 }
 

@@ -1,6 +1,8 @@
 package main
 
 import (
+	"crypto/tls"
+	"net"
 	"os"
 	"path"
 
@@ -17,12 +19,28 @@ type client struct {
 
 type server struct {
 	c map[uuid.UUID]*client
+	l net.Listener
 }
 
-func newServer() *server {
-	return &server{
-		c: make(map[uuid.UUID]*client),
+func newServer(addr string) (*server, error) {
+	l, err := net.Listen("tcp", addr)
+	if err != nil {
+		return nil, err
 	}
+	srv := &server{
+		c: make(map[uuid.UUID]*client),
+		l: l,
+	}
+	if *useTLS == true {
+		tlsConfig := &tls.Config{
+			// TODO: Certificates: []tls.Certificate{}
+			// Remove this after we implement certs
+			InsecureSkipVerify: true,
+			ServerName: addr,
+		}
+		srv.l = tls.NewListener(l, tlsConfig)
+	}  
+	return srv, nil
 }
 
 func (srv *server) newClient(service string) (*client, uuid.UUID) {
