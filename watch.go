@@ -121,5 +121,4 @@ func startListeners(event chan string, t *tailReader, ctx context.Context) {
 		case event <- scanner.Text():
 		}
 	}
-	log.Println("Ended that scanner")
 }
