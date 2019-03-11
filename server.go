@@ -24,6 +24,14 @@ type server struct {
 }
 
 func newServer(addr, service string) (*server, error) {
+	// Bit of magic here - if we get a good port # then we know addr is fine
+	// If we don't, we know addr is only the host name
+	// So we just tag on the port and start the listeners
+	_, port, _ := net.SplitHostPort(addr)
+	if port == "" {
+		port = "564"
+		addr = net.JoinHostPort(addr, port)
+	}
 	l, err := net.Listen("tcp", addr)
 	if err != nil {
 		return nil, err

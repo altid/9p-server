@@ -1,13 +1,10 @@
 package main
 
 
-// TODO: Clean up flow into simple events loop 
-
 import (
 	"bufio"
 	"context"
 	"io"
-	"log"
 	"os"
 	"path"
 	"path/filepath"
