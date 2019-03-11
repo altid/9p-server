@@ -20,9 +20,10 @@ type client struct {
 type server struct {
 	c map[uuid.UUID]*client
 	l net.Listener
+	service string
 }
 
-func newServer(addr string) (*server, error) {
+func newServer(addr, service string) (*server, error) {
 	l, err := net.Listen("tcp", addr)
 	if err != nil {
 		return nil, err
@@ -30,6 +31,7 @@ func newServer(addr string) (*server, error) {
 	srv := &server{
 		c: make(map[uuid.UUID]*client),
 		l: l,
+		service: path.Base(service),
 	}
 	if *useTLS == true {
 		tlsConfig := &tls.Config{
@@ -103,10 +105,7 @@ func walkTo(c *client, req string, uid string) (os.FileInfo, string, error) {
 
 // Called when a client connects
 func (srv server) Serve9P(s *styx.Session) {
-	// TODO: Server will contain connection address, which will map to services requested
-	// Choose the first on the list as a default
-	// Server is an aggregate of services based on listen_address
-	client, uuid := srv.newClient(path.Join(*inpath, s.Access))
+	client, uuid := srv.newClient(path.Join(*inpath, srv.service))
 	defer delete(srv.c, uuid)  
 	defer close(client.done)
 	for s.Next() {

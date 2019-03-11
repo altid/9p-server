@@ -102,7 +102,6 @@ func findListeners(event chan string, servlist *map[string]*tail) []*tailReader 
 		}
 		reader, err := newTailReader(t)
 		if err != nil {
-			log.Print(err)
 			continue
 		}
 		s[file] = t

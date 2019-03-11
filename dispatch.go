@@ -4,6 +4,7 @@ import (
 	"context"
 	"log"
 	"path"
+	"path/filepath"
 	"strings"
 
 	"aqwari.net/net/styx"
@@ -42,7 +43,7 @@ func (sl *servlist) startService(service string, ctx context.Context) {
 	if sl.servers[addr] != nil { // Server already exists
 		return
 	}
-	srv, err := newServer(addr)
+	srv, err := newServer(addr, service)
 	if err != nil {
 		return
 	}
@@ -52,6 +53,7 @@ func (sl *servlist) startService(service string, ctx context.Context) {
 		//Auth: styxauth.TLS,
 		//TLSConfig: 
 	}
+	log.Println("Adding address " + addr)
 	go styx.Serve(srv.l)
 	sl.servers[addr] = srv
 }
@@ -66,27 +68,24 @@ func (servlist *servlist) stopService(service string) {
 }
 
 func findServer(s *servlist, e string) *server {
-	// Strip back the last element of the path until we find a service name
-	for dir := path.Dir(e); dir != "."; dir = path.Dir(dir) {
-		if s.servers[dir] != nil {
-			return s.servers[dir]
+	for _, srv := range s.servers {
+		testPath := path.Join(*inpath, srv.service)
+ 		if filepath.HasPrefix(e, testPath) {
+			return srv
 		}
 	}
-	log.Println("not found " + e)
 	return nil
 }
 
 func (s *servlist) sendEvent(e string) {
-
 	srv := findServer(s, e)
 	if srv == nil {
 		return
 	}
 	// Range through clients and send events to clients connected to service
 	for _, c := range srv.c {
-		current := path.Join(path.Base(c.service), path.Base(c.buffer))
+		current := path.Join(*inpath, path.Base(c.service), path.Base(c.buffer))
 		if current == path.Dir(e) {
-			// Print just the buffname to the clients' event file
 			c.event <- path.Base(e) + "\n"
 		}
 	}

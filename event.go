@@ -24,7 +24,7 @@ func (f *event) Read(p []byte) (n int, err error) {
 		}
 		n = copy(p, s)
 	}
-	return n, err
+	return n, io.EOF
 }
 
 func (f *event) Close() error { return nil }
