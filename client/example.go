@@ -1,20 +1,17 @@
 package main
 
-
-// TODO: We'll have to switch to dockec/gop9p
-// Lionkov's is broken.
 import (
 	"bufio"
+	"bytes"
 	"context"
-	"fmt"
-	"io/ioutil"
 	"log"
 	"net"
 	"os"
-	"strings"
-
-	"github.com/lionkov/go9p/p/clnt"
-	"github.com/lionkov/go9p/p"
+	"os/user"
+	//"strings"
+	"time"
+	
+	"github.com/docker/go-p9p"
 )
 
 var current string
@@ -24,14 +21,48 @@ type msg struct {
 	msg string
 }
 
-func attach(srv string, ctx context.Context) (*clnt.Clnt, error) {
-	user := p.OsUsers.Uid2User(os.Geteuid())
+type server struct {
+	ctx context.Context
+	session p9p.Session
+	pwd string
+	pwdfid p9p.Fid
+	rootfid p9p.Fid
+	nextfid p9p.Fid
+}
+	
+func attach(srv string, ctx context.Context) (*server, error) {
+	// Docker's lib doesn't do much heavy lifting for us
+	usr, err := user.Current()
+	if err != nil {
+		return nil, err
+	}
 	d := net.Dialer{}
 	c, err := d.DialContext(ctx, "tcp", srv)
 	if err != nil {
 		return nil, err
 	}
-	return clnt.MountConn(c, "", 8192, user)
+	session, err := p9p.NewSession(ctx, c)
+	if err != nil {
+		return nil, err
+	}
+	s := &server{
+		ctx: ctx,
+		pwd: "/",
+		nextfid: 1,
+		session: session,
+	}
+	if _, err := s.session.Attach(s.ctx, s.nextfid, p9p.NOFID, usr.Username, "/"); err != nil {
+		return nil, err
+	}
+	s.rootfid = s.nextfid
+	s.nextfid++
+	if _, err := s.session.Walk(s.ctx, s.rootfid, s.nextfid); err != nil {
+		return nil, err
+	}
+	s.pwdfid = s.nextfid
+	s.nextfid++
+	go tailEventsFile(s)
+	return s, nil
 }
 
 func readStdin(ctx context.Context) chan string {
@@ -43,14 +74,13 @@ func readStdin(ctx context.Context) chan string {
 			case <-ctx.Done():
 				return
 			case input <- scanner.Text():
-				log.Println(input)
 			}
 		}
 	}(ctx, input)
 	return input
 }
 
-func dispatch(srv map[string]*clnt.Clnt, events chan *msg, input chan string) {
+func dispatch(srv map[string]*server, events chan *msg, input chan string) {
 	for {
 		select {
 		case i := <-input:
@@ -61,27 +91,56 @@ func dispatch(srv map[string]*clnt.Clnt, events chan *msg, input chan string) {
 				handleCtrl(srv, i[1:])
 				continue
 			}
-			handleInput(srv[current], i)	
-		case e := <-events:
-			if e.srv == current {
-				handleMessage(srv[current], e)
+			handleInput(srv[current], i)
+		
+		case event := <-events:
+			if event.srv == current {
+				err := handleMessage(srv[current], event)
+				if err != nil {
+					log.Print(err)
+				}
 			}
 		}
 	}
 }
 
-func handleInput(srv *clnt.Clnt, input string) {
-	f, err := srv.FOpen("/input", p.OWRITE)
-	if err != nil {
-		log.Print(err)
-		return
+func handleInput(s *server, input string) error {
+	ctx, _ := context.WithTimeout(s.ctx, 5*time.Second)
+	targetfid := s.nextfid
+	s.nextfid++
+	if _, err := s.session.Walk(ctx, s.rootfid, targetfid, "input"); err != nil {
+		return err
 	}
-	defer f.Close()
-	f.Write([]byte(input))
+	defer s.session.Clunk(s.ctx, s.pwdfid)
+	_, iounit, err := s.session.Open(ctx, targetfid, p9p.OWRITE)
+	if err != nil {
+		return err
+	}
+	if iounit < 1 {
+		msize, _ := s.session.Version()
+		iounit = uint32(msize - 24)
+	}
+	d, err := s.session.Stat(ctx, targetfid)
+	if err != nil {
+		return err
+	}
+	buffer := bytes.NewBufferString(input)
+	n := int64(d.Length) //potentially narrowing
+	for buffer.Len() > 0 {
+		b := buffer.Next(int(iounit))
+		offset := len(b)
+		_, err := s.session.Write(ctx, targetfid, b, n)
+		if err != nil {
+			return err
+		}
+		n+=int64(offset)
+	}
+	return err
+	
 }
 
-func handleCtrl(srv map[string]*clnt.Clnt, command string) {
-	if strings.HasPrefix(current, command) {
+func handleCtrl(srv map[string]*server, command string) {
+	/*if strings.HasPrefix(current, command) {
 		buff := strings.TrimPrefix(current, command)
       		if srv[buff] != nil {
 			current = buff
@@ -90,24 +149,43 @@ func handleCtrl(srv map[string]*clnt.Clnt, command string) {
 				msg: "document",
 			})
 		}
-	}
+	}*/
+	// Handle buffer changes, etc; then send the message on down to 9p-server.
 }
 
-func handleMessage(srv *clnt.Clnt, m *msg) {
-	if m.srv == current && m.msg == "document" {
-		f, err := srv.FOpen("/document", p.OREAD)
-		if err != nil {
-			log.Print(err)
-			return
-		}
-		defer f.Close()
-		data, err := ioutil.ReadAll(f)
-		if err != nil {
-			log.Print(err)
-			return
-		}
-		fmt.Println(data)
+func handleMessage(s *server, m *msg) error {
+	if m.srv != current || m.msg != "document" {
+		return nil
 	}
+	ctx, _ := context.WithTimeout(s.ctx, 5*time.Second)
+	targetfid := s.nextfid
+	s.nextfid++
+	if _, err := s.session.Walk(ctx, s.rootfid, targetfid, "document"); err != nil {
+		return err
+	}
+	defer s.session.Clunk(s.ctx, s.pwdfid)
+	_, iounit, err := s.session.Open(ctx, targetfid, p9p.OREAD)
+	if err != nil {
+		return err
+	}
+	if iounit < 1 {
+		msize, _ := s.session.Version()
+		iounit = uint32(msize - 24)
+	}
+	b := make([]byte, iounit)
+	n, err := s.session.Read(ctx, targetfid, b, 0)
+	if err != nil {
+		return err
+	}
+	if _, err := os.Stdout.Write(b[:n]); err != nil {
+		return err
+	}
+	os.Stdout.Write([]byte("\n"))
+	return nil
+}
+
+func tailEventsFile(s *server) {
+	// 
 }
 
 func main() {
@@ -116,7 +194,7 @@ func main() {
 	}
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	servlist := make(map[string]*clnt.Clnt)
+	servlist := make(map[string]*server)
 	events := make(chan *msg)
 	for _, arg := range os.Args[1:] {
 		c, err := attach(arg, ctx)
@@ -137,7 +215,4 @@ func main() {
 	})
 	input := readStdin(ctx)
 	dispatch(servlist, events, input)
-	for _, conn := range servlist {
-		conn.Unmount()
-	}
 }
