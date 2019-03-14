@@ -107,6 +107,8 @@ func dispatch(srv map[string]*server, events chan *msg, input chan string) {
 	}
 }
 
+// BUG(halfwit): Writes are not making it to the underlying service
+// We'll have to do quite a lot of debugging to see what is not happening
 func handleInput(s *server, input string) error {
 	ctx, _ := context.WithTimeout(s.ctx, 5*time.Second)
 	targetfid := s.nextfid
@@ -222,6 +224,9 @@ type eventReader struct {
 	offset int64
 }
 
+// BUG(halfwit): Currently no events are being read
+// It is very likely this is due to the tailing implementation
+// not working well with go-p9p
 func (e *eventReader) Read(p []byte) (n int, err error) {
 	return e.session.Read(e.ctx, e.tfid, p, e.offset)
 }
