@@ -8,7 +8,7 @@ import (
 	"net"
 	"os"
 	"os/user"
-	//"strings"
+	"strings"
 	"time"
 	
 	"github.com/docker/go-p9p"
@@ -30,13 +30,16 @@ type server struct {
 	nextfid p9p.Fid
 }
 	
-func attach(srv string, ctx context.Context) (*server, error) {
+func attach(srv string, ctx context.Context, event chan *msg) (*server, error) {
 	// Docker's lib doesn't do much heavy lifting for us
 	usr, err := user.Current()
 	if err != nil {
 		return nil, err
 	}
 	d := net.Dialer{}
+	if ! strings.Contains(srv, ":") {
+		srv += ":564"
+	}
 	c, err := d.DialContext(ctx, "tcp", srv)
 	if err != nil {
 		return nil, err
@@ -61,7 +64,7 @@ func attach(srv string, ctx context.Context) (*server, error) {
 	}
 	s.pwdfid = s.nextfid
 	s.nextfid++
-	go tailEventsFile(s)
+	go sendEvents(s, srv, event)
 	return s, nil
 }
 
@@ -87,7 +90,7 @@ func dispatch(srv map[string]*server, events chan *msg, input chan string) {
 			if i == "/quit" {
 				return
 			}
-			if i[0] == '/' {
+			if i[0] == '/' && len(i) > 1 {
 				handleCtrl(srv, i[1:])
 				continue
 			}
@@ -120,28 +123,26 @@ func handleInput(s *server, input string) error {
 		msize, _ := s.session.Version()
 		iounit = uint32(msize - 24)
 	}
-	d, err := s.session.Stat(ctx, targetfid)
-	if err != nil {
-		return err
-	}
 	buffer := bytes.NewBufferString(input)
-	n := int64(d.Length) //potentially narrowing
+	var n int64
 	for buffer.Len() > 0 {
 		b := buffer.Next(int(iounit))
 		offset := len(b)
-		_, err := s.session.Write(ctx, targetfid, b, n)
+		_, err := s.session.Write(ctx, targetfid, b, n - 1)
 		if err != nil {
 			return err
 		}
+		s.session.Write(ctx, targetfid, []byte("\n"), n)
 		n+=int64(offset)
 	}
 	return err
 	
 }
 
-func handleCtrl(srv map[string]*server, command string) {
-	/*if strings.HasPrefix(current, command) {
-		buff := strings.TrimPrefix(current, command)
+func handleCtrl(srv map[string]*server, command string) error {
+	log.Println(command)
+	if strings.HasPrefix("service ", command) {
+		buff := strings.TrimPrefix("service ", command)
       		if srv[buff] != nil {
 			current = buff
 			handleMessage(srv[buff], &msg{
@@ -149,8 +150,38 @@ func handleCtrl(srv map[string]*server, command string) {
 				msg: "document",
 			})
 		}
-	}*/
-	// Handle buffer changes, etc; then send the message on down to 9p-server.
+		return nil
+	}
+	s := srv[current]
+	ctx, _ := context.WithTimeout(s.ctx, 5*time.Second)
+	targetfid := s.nextfid
+	s.nextfid++
+	if _, err := s.session.Walk(ctx, s.rootfid, targetfid, "ctrl"); err != nil {
+		return err
+	}
+	defer s.session.Clunk(ctx, s.pwdfid)
+	_, iounit, err := s.session.Open(ctx, targetfid, p9p.OWRITE)
+	if err != nil {
+		return err
+	}
+	if iounit < 1 {
+		msize, _ := s.session.Version()
+		iounit = uint32(msize - 24)
+	}
+	buffer := bytes.NewBufferString(command)
+	var n int64
+	for buffer.Len() > 0 {
+		b := buffer.Next(int(iounit))
+		offset := len(b)
+		_, err := s.session.Write(ctx, targetfid, b, n)
+		if err != nil {
+			return err
+		}
+		s.session.Write(ctx, targetfid, []byte("\n"), n)
+		s.session.Clunk(ctx, s.pwdfid)
+		n+=int64(offset)
+	}
+	return err
 }
 
 func handleMessage(s *server, m *msg) error {
@@ -184,8 +215,46 @@ func handleMessage(s *server, m *msg) error {
 	return nil
 }
 
-func tailEventsFile(s *server) {
-	// 
+type eventReader struct {
+	ctx context.Context
+	session p9p.Session
+	tfid p9p.Fid
+	offset int64
+}
+
+func (e *eventReader) Read(p []byte) (n int, err error) {
+	return e.session.Read(e.ctx, e.tfid, p, e.offset)
+}
+
+func sendEvents(s *server, name string, event chan *msg) {
+	ctx, _ := context.WithTimeout(s.ctx, 5*time.Second)
+	targetfid := s.nextfid
+	s.nextfid++
+	if _, err := s.session.Walk(ctx, s.rootfid, targetfid, "event"); err != nil {
+		log.Print(err)
+		return 
+	}
+	defer s.session.Clunk(s.ctx, s.pwdfid)
+	_, _, err := s.session.Open(ctx, targetfid, p9p.OREAD)
+	if err != nil {
+		log.Print(err)
+		return
+	}
+	e := &eventReader{
+		session: s.session,
+		ctx: s.ctx,
+		tfid: targetfid,
+	}
+	scanner := bufio.NewScanner(e)
+	for scanner.Scan() {
+		txt := scanner.Text()
+		event <- &msg{
+			msg: txt,
+			srv: name,
+		}
+		e.offset += int64(len(txt))
+	}
+	
 }
 
 func main() {
@@ -197,7 +266,7 @@ func main() {
 	servlist := make(map[string]*server)
 	events := make(chan *msg)
 	for _, arg := range os.Args[1:] {
-		c, err := attach(arg, ctx)
+		c, err := attach(arg, ctx, events)
 		if err != nil {
 			log.Print(err)
 			continue

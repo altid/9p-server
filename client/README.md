@@ -5,13 +5,8 @@ This client is a very simple client which writes the body of `document` or write
 
 ## Usage
 
-```
-# tail -f is available everywhere I use this
+`example <ip address> [<ip address> ...]`
 
-touch fifo
-tail -f fifo | example <ip address> [<ip address> ...]
+Anything typed in the terminal will be read as stdin.
+To quit, type `/exit`
 
-# In another terminal
-echo /ctrl message >> fifo
-echo some input >> fifo
-```

@@ -43,8 +43,8 @@ func newServer(addr, service string) (*server, error) {
 	}
 	if *useTLS == true {
 		tlsConfig := &tls.Config{
-			// TODO: Certificates: []tls.Certificate{}
-			// Remove this after we implement certs
+			// TODO halfwit: Switch to proper TLS certificates
+			// This will require parsing of the ubqt config file
 			InsecureSkipVerify: true,
 			ServerName: addr,
 		}
@@ -98,7 +98,7 @@ func walkTo(c *client, req string, uid string) (os.FileInfo, string, error) {
 			return nil, fp, err
 		}
 		return &eventStat{name: "event", file: eventfile}, clientEvent, nil
-	// TODO: case "tabs":
+	// TODO: tabs
 	default:
 		stat, err := os.Stat(fp)
 		// If we have an error here, try to get a base-level stat.
@@ -114,8 +114,8 @@ func walkTo(c *client, req string, uid string) (os.FileInfo, string, error) {
 // Called when a client connects
 func (srv server) Serve9P(s *styx.Session) {
 	client, uuid := srv.newClient(path.Join(*inpath, srv.service))
-	defer delete(srv.c, uuid)  
 	defer close(client.done)
+	defer delete(srv.c, uuid)
 	for s.Next() {
 		req := s.Request()
 		stat, fp, err := walkTo(client, req.Path(), s.User)

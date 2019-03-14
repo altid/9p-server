@@ -31,7 +31,8 @@ func mkdir(filepath, uid string, cl *client) *dir {
 		return nil
 	}
 	list = append(list, &eventStat{name: "event", file: eventfile})
-	// TODO: Tabs
+	// TODO halfwit: Aggregate tabs from all services to our connected client
+	// clients will negotiate their own highlights
 	//tabsfile, err := mktabs(uid, cl)
 	//if err != nil {
 	//	return nil

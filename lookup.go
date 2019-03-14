@@ -32,7 +32,7 @@ func getBase(p string) string {
 	return path.Join(dir, target)
 }
 
-// TODO: Modify this to only search in trees related to the server
+// BUG(halfwit): DefaultBuffer function should only return buffers of services it is connected to
 func defaultBuffer(root string) string {
 	// Recursively walk the tree down until we find a useful file
 	var result string

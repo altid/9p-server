@@ -1,12 +1,12 @@
 package main
 
 import (
-	"errors"
+	"bytes"
+	"fmt"
 	"io"
 	"io/ioutil"
 	"os"
 	"path"
-	"strings"
 	"time"
 )
 
@@ -28,45 +28,43 @@ func (f *ctlFile) ReadAt(b []byte, off int64) (n int, err error) {
 }
 
 func (f *ctlFile) WriteAt(p []byte, off int64) (n int, err error) {
-	token := strings.Fields(string(p))
+	size := len(p)
 	f.modTime = time.Now().Truncate(time.Hour)
-	f.off += int64(len(p))
-	switch token[0] {
+	f.off += off + int64(size)
+
+	buff := bytes.NewBuffer(p)
+	command, err := buff.ReadString(' ')
+	action := buff.String()
+	if err != nil && err != io.EOF {
+		return
+	}
+	switch command {
 	case "buffer":
-		if (len(token) < 2) {
-			return 0, errors.New("No buffers specified")
-		}
-		current := path.Join(f.cl.service, token[1])
+		// NOTE(halfwit): This abuses semantics of String()
+		// String() sets the value of buffer to <nil> should it be empty
+		// The Lstat will fail, and the message will be descriptive for all cases.
+		current := path.Join(f.cl.service, action)
 		if _, err = os.Lstat(current); err != nil {
-			return 0, err
+			return 0, fmt.Errorf("No such buffer: %s\n", action)
 		}
 		f.cl.buffer = current
-		return len(p), nil
+		return size, nil
 	case "close":
-		if (len(token) < 2) {
-			return 0, errors.New("No buffers specified")
+		if f.cl.buffer == action {
+			f.cl.buffer = defaultBuffer(f.cl.service)
 		}
-		f.cl.buffer = defaultBuffer(f.cl.service)
 	case "open":
-		if (len(token) < 2) {
-			return 0, errors.New("No buffers specified")
+		if action != "<nil>" {
+			f.cl.buffer = path.Join(f.cl.service, action)
 		}
-		f.cl.buffer = path.Join(f.cl.service, token[1])
-	// (bug) halfwit: client writes block here
-	case "9p":
-		if (len(token) < 2) {
-			return 0, errors.New("No buffers specified")
-		}
-		f.cl.event <- token[1]
-		return len(p), nil
 	}
 	name := path.Join(f.cl.service, "ctrl")
-	fp, err := os.OpenFile(name, os.O_WRONLY|os.O_APPEND, 0644)
+	fp, err := os.OpenFile(name, os.O_WRONLY|os.O_APPEND, 0600)
 	if err != nil {
 		return 0, err
 	}
-	defer fp.Close()
-	return fp.Write(p)
+	defer f.Close()
+	return fp.WriteString(command + " " + action)
 }
 
 func (f *ctlFile) Close() error { return nil }
