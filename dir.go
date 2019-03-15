@@ -3,6 +3,7 @@ package main
 import (
 	"io"
 	"io/ioutil"
+	"log"
 	"os"
 	"path"
 	"time"
@@ -23,21 +24,22 @@ func mkdir(filepath, uid string, cl *client) *dir {
 	}
 	ctlfile, err := mkctl(getBase(path.Join(filepath, "ctrl")), uid, cl)
 	if err != nil {
+		log.Println(err)
 		return nil
 	}
 	list = append(list, &ctlStat{name: "ctrl", file: ctlfile})
 	eventfile, err := mkevent(uid, cl)
 	if err != nil {
+		log.Println(err)
 		return nil
 	}
 	list = append(list, &eventStat{name: "event", file: eventfile})
-	// TODO halfwit: Aggregate tabs from all services to our connected client
-	// clients will negotiate their own highlights
-	//tabsfile, err := mktabs(uid, cl)
-	//if err != nil {
-	//	return nil
-	//}
-	//list = append(list, &tabsStat{name: "tabs", file: tabsfile})
+	tabsfile, err := mktabs(getBase(path.Join(filepath, "tabs")), uid, cl)
+	if err != nil {
+		log.Println(err)
+		return nil
+	}
+	list = append(list, &tabsStat{name: "tabs", file: tabsfile})
 	go func([]os.FileInfo) {
 		for _, f := range list {
 			select {

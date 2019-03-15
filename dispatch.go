@@ -84,6 +84,10 @@ func (s *servlist) sendEvent(e string) {
 	}
 	// Range through clients and send events to clients connected to service
 	for _, c := range srv.c {
+		log.Print(path.Base(path.Dir(e)))
+		if path.Base(e) == "notification" {
+			c.tabs[path.Base(path.Dir(e))] = "red"
+		}
 		current := path.Join(*inpath, path.Base(c.service), path.Base(c.buffer))
 		if current == path.Dir(e) {
 			c.event <- path.Base(e) + "\n"

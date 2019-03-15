@@ -2,6 +2,7 @@ package main
 
 import (
 	"crypto/tls"
+	"log"
 	"net"
 	"os"
 	"path"
@@ -15,6 +16,7 @@ type client struct {
 	service string
 	event   chan string
 	done    chan struct{}
+	tabs    map[string]string
 }
 
 type server struct {
@@ -38,6 +40,7 @@ func newServer(addr, service string) (*server, error) {
 	}
 	srv := &server{
 		c: make(map[uuid.UUID]*client),
+
 		l: l,
 		service: path.Base(service),
 	}
@@ -58,14 +61,17 @@ func (srv *server) newClient(service string) (*client, uuid.UUID) {
 	buffer := defaultBuffer(service)
 	ch := make(chan string)
 	done := make(chan struct{})
+	tabs := make(map[string]string)
+	tabs[path.Base(buffer)] = "purple"
 	srv.c[cid] = &client{
 		buffer: buffer,
 		service: service,
 		event: ch,
 		done: done,
+		tabs: tabs,
 	}
 	// Make sure we close off events channel when we're done
-	go func(ch chan string, done chan struct{}) {
+	go func (ch chan string, done chan struct{}) {
 		for {
 			defer close(ch)
 			select {
@@ -88,17 +94,38 @@ func walkTo(c *client, req string, uid string) (os.FileInfo, string, error) {
 		clientCtl := getBase(fp)
 		ctlfile, err := mkctl(clientCtl, uid, c)
 		if err != nil {
+			log.Print(err)
 			return nil, fp, err
 		}
-		return &ctlStat{name: "ctrl", file: ctlfile}, clientCtl, nil
+		cs :=  &ctlStat{
+			name: "ctrl",
+			file: ctlfile,
+		}
+		return cs, clientCtl, nil
 	case "/event":
 		clientEvent := getBase(fp)
 		eventfile, err := mkevent(uid, c)
 		if err != nil {
+			log.Print(err)
 			return nil, fp, err
 		}
-		return &eventStat{name: "event", file: eventfile}, clientEvent, nil
-	// TODO: tabs
+		es := &eventStat{
+			name: "event",
+			file: eventfile,
+		}
+		return es, clientEvent, nil
+	case "/tabs":
+		clientTabs := getBase(fp)
+		tabsfile, err := mktabs(clientTabs, uid, c)
+		if err != nil {
+			log.Print(err)
+			return nil, fp, err
+		}
+		ts := &tabsStat{
+			name: "tabs",
+			file: tabsfile,
+		}
+		return ts, clientTabs, nil
 	default:
 		stat, err := os.Stat(fp)
 		// If we have an error here, try to get a base-level stat.
@@ -134,7 +161,8 @@ func (srv server) Serve9P(s *styx.Session) {
 				t.Ropen(mkevent(s.User, client))
 			case "/ctrl":
 				t.Ropen(mkctl(fp, s.User, client))
-			//case "tabs"
+			case "/tabs":
+				t.Ropen(mktabs(fp, s.User, client))
 			default:
 				t.Ropen(os.OpenFile(fp, os.O_RDWR, 0644))
 			}
@@ -142,14 +170,14 @@ func (srv server) Serve9P(s *styx.Session) {
 			t.Rstat(stat, nil)
 		case styx.Tutimes:
 			switch t.Path() {
-			case "/", "/event", "/ctrl":
+			case "/", "/event", "/ctrl", "/tabs":
 				t.Rutimes(nil)
 			default:
 				t.Rutimes(os.Chtimes(fp, t.Atime, t.Mtime))
 			}
 		case styx.Ttruncate:
 			switch t.Path() {
-			case "/",  "/event", "/ctrl":
+			case "/",  "/event", "/ctrl", "/tabs":
 				t.Rtruncate(nil)
 			default:
 				t.Rtruncate(os.Truncate(fp, t.Size))

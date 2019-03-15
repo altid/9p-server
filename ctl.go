@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -39,29 +40,45 @@ func (f *ctlFile) WriteAt(p []byte, off int64) (n int, err error) {
 		return
 	}
 	switch command {
+	// NOTE(halfwit): This abuses semantics of String()
+	// String() sets the value of buffer to <nil> should it be empty
+	// The Lstat will fail, and the message will be descriptive for all cases
 	case "buffer":
-		// NOTE(halfwit): This abuses semantics of String()
-		// String() sets the value of buffer to <nil> should it be empty
-		// The Lstat will fail, and the message will be descriptive for all cases.
+		f.cl.tabs[f.cl.buffer] = "blue"
 		current := path.Join(f.cl.service, action)
 		if _, err = os.Lstat(current); err != nil {
 			return 0, fmt.Errorf("No such buffer: %s\n", action)
 		}
 		f.cl.buffer = current
+		f.cl.tabs[current] = "purple"
 		return size, nil
 	case "close":
+		if _, ok := f.cl.tabs[action]; ok {
+			delete(f.cl.tabs, action)
+		}
 		if f.cl.buffer == action {
-			f.cl.buffer = defaultBuffer(f.cl.service)
+			buffer := defaultBuffer(f.cl.service)
+			if buffer != "" {	
+				f.cl.buffer = buffer
+				f.cl.tabs[buffer] = "purple"
+			}
 		}
+	// NOTE(halfwit): Same as above, nil means the buffer was empty
+	// when we tried to read on it
 	case "open":
-		if action != "<nil>" {
-			f.cl.buffer = path.Join(f.cl.service, action)
+		if action == "<nil>" {
+			return 0, errors.New("No resource specified to open")
 		}
+		f.cl.tabs[f.cl.buffer] = "blue"
+		if _, ok := f.cl.tabs[action]; ! ok {
+			f.cl.tabs[action] = "purple"
+		}
+		f.cl.buffer = path.Join(f.cl.service, action)
 	}
 	name := path.Join(f.cl.service, "ctrl")
 	fp, err := os.OpenFile(name, os.O_WRONLY|os.O_APPEND, 0600)
 	if err != nil {
-		return 0, err
+		return
 	}
 	defer f.Close()
 	return fp.WriteString(command + " " + action)
@@ -83,18 +100,18 @@ func (s *ctlStat) IsDir() bool        { return false }
 func (s *ctlStat) Mode() os.FileMode  { return 0644 }
 func (s *ctlStat) Size() int64        { return s.file.size }
 
-// This returns a ready rwc for future reads/writes
 func mkctl(ctl, uid string, cl *client) (*ctlFile, error) {
 	buff, err := ioutil.ReadFile(ctl)
 	if err != nil {
 		return nil, err
 	}
-	return &ctlFile{
+	c := &ctlFile{
 		data:    buff,
 		size:    int64(len(buff)),
 		off:     0,
 		modTime: time.Now(),
 		uid:     uid,
 		cl:  cl,
-	}, nil
+	}
+	return c, nil
 }

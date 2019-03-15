@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"os"
 	"path"
 	"path/filepath"
@@ -11,8 +10,11 @@ import (
 	"github.com/ubqt-systems/fslib"
 )
 
-// getBase will see if file exists at base of current file server
-// for example, given a path /home/user/ubqt, running with the irc fileserver at /home/user/ubqt/irc; it will search for /home/user/ubqt/irc/<myfile>.
+// NOTE(halfwit): getBase will see if file exists at base of current file server
+// example: running with the irc fileserver at /home/user/ubqt/irc
+// it will search for /home/user/ubqt/irc/somebuffer/somefile
+// and walk back in the dir structure until it finds the file
+// or the path gets trimmed down to *inpath or "/"
 func getBase(p string) string {
 	if !strings.Contains(p, *inpath) {
 		return p
@@ -33,6 +35,7 @@ func getBase(p string) string {
 }
 
 // BUG(halfwit): DefaultBuffer function should only return buffers of services it is connected to
+// this will take some reworking of how services interact with clients
 func defaultBuffer(root string) string {
 	// Recursively walk the tree down until we find a useful file
 	var result string
@@ -45,20 +48,21 @@ func defaultBuffer(root string) string {
 		}
 
 		switch info.Name() {
-		case "feed", "document", "stream", "form":
+		case "feed", "document", "stream":
 			result = path.Dir(fullpath)
 		}
 
 		return nil
 	})
 	if err != nil {
-		fmt.Printf("%s\n", err)
+		return ""
 	}
 	return result
 }
 
-// Look up any listen_address entry, return if found
-// If entry is nil, return default
+// NOTE(halfwit): If the listen address isn't found here, it returns 
+// just ":564", the default 9p listen port. The IP will default
+// to the first IP on the system network stack. 
 func findListenAddress(service string) string {
 	listen_address := ":564"
 	confdir, err := fslib.UserConfDir()

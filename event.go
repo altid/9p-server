@@ -47,5 +47,10 @@ func (s *eventStat) Size() int64        { return s.file.size }
 // Return an event type
 // See if we need access to an underlying channel here for the type.
 func mkevent(u string, cl *client) (*event, error) {
-	return &event{uid: u, events: cl.event, done: cl.done}, nil
+	e := &event{
+		uid: u,
+		events: cl.event,
+		done: cl.done,
+	}
+	return e, nil
 }
