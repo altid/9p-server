@@ -8,7 +8,6 @@ import (
 )
 
 var (
-	addr     = flag.String("a", "4567", "port to listen on")
 	inpath   = flag.String("p", "/tmp/ubqt", "directory to watch")
 	username = flag.String("u", "", "user name")
 	useTLS   = flag.Bool("t", false, "Use TLS for connections")
