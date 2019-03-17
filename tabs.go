@@ -34,7 +34,6 @@ type tabsStat struct {
 	file *tabs
 }
 
-// Make the size larger than any conceivable message we'll receive
 func (s *tabsStat) Name() string       { return s.name }
 func (s *tabsStat) Sys() interface{}   { return s.file }
 func (s *tabsStat) ModTime() time.Time { return time.Now() }
@@ -51,7 +50,7 @@ func mktabs(tab, uid string, cl *client) (*tabs, error) {
 	scanner := bufio.NewScanner(tf)
 	for scanner.Scan() {
 		line := scanner.Text()
-		code, ok := cl.tabs[path.Base(line)]
+		code, ok := cl.tabs[path.Join(cl.service, line)]
 		if ! ok {
 			code = "grey"
 		}
@@ -59,7 +58,6 @@ func mktabs(tab, uid string, cl *client) (*tabs, error) {
 		color, _ := cleanmark.NewColor(code, []byte(msg))
 		data += fmt.Sprintf("%s\n", color)
 	}
-	fmt.Println(data)
 	t := &tabs{
 		data: data,
 		uid:  uid,

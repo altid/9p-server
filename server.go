@@ -62,7 +62,7 @@ func (srv *server) newClient(service string) (*client, uuid.UUID) {
 	ch := make(chan string)
 	done := make(chan struct{})
 	tabs := make(map[string]string)
-	tabs[path.Base(buffer)] = "purple"
+	tabs[buffer] = "purple"
 	srv.c[cid] = &client{
 		buffer: buffer,
 		service: service,

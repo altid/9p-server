@@ -53,6 +53,7 @@ func (f *ctlFile) WriteAt(p []byte, off int64) (n int, err error) {
 		}
 		f.cl.buffer = current
 		f.cl.tabs[current] = "purple"
+		fmt.Println(f.cl.tabs)
 		return size, nil
 	case "close":
 		if _, ok := f.cl.tabs[action]; ok {
