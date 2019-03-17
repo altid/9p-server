@@ -7,6 +7,8 @@ import (
 	"os"
 	"path"
 	"time"
+
+	"github.com/ubqt-systems/cleanmark"
 )
 
 type tabs struct {
@@ -54,7 +56,8 @@ func mktabs(tab, uid string, cl *client) (*tabs, error) {
 			code = "grey"
 		}
 		msg := path.Base(line)
-		data += fmt.Sprintf("%%[%s](%s)\n", msg, code)
+		color, _ := cleanmark.NewColor(code, []byte(msg))
+		data += fmt.Sprintf("%s\n", color)
 	}
 	fmt.Println(data)
 	t := &tabs{

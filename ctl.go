@@ -8,6 +8,7 @@ import (
 	"io/ioutil"
 	"os"
 	"path"
+	"strings"
 	"time"
 )
 
@@ -36,18 +37,19 @@ func (f *ctlFile) WriteAt(p []byte, off int64) (n int, err error) {
 	buff := bytes.NewBuffer(p)
 	command, err := buff.ReadString(' ')
 	action := buff.String()
+	action = strings.TrimSpace(action)
 	if err != nil && err != io.EOF {
 		return
 	}
-	switch command {
 	// NOTE(halfwit): This abuses semantics of String()
 	// String() sets the value of buffer to <nil> should it be empty
 	// The Lstat will fail, and the message will be descriptive for all cases
+	switch strings.TrimSpace(command) {
 	case "buffer":
-		f.cl.tabs[f.cl.buffer] = "blue"
+		f.cl.tabs[f.cl.buffer] = "grey"
 		current := path.Join(f.cl.service, action)
 		if _, err = os.Lstat(current); err != nil {
-			return 0, fmt.Errorf("No such buffer: %s\n", action)
+			return 0, fmt.Errorf("Error swapping buffers to %s: %s\n", action, err)
 		}
 		f.cl.buffer = current
 		f.cl.tabs[current] = "purple"
@@ -69,7 +71,7 @@ func (f *ctlFile) WriteAt(p []byte, off int64) (n int, err error) {
 		if action == "<nil>" {
 			return 0, errors.New("No resource specified to open")
 		}
-		f.cl.tabs[f.cl.buffer] = "blue"
+		f.cl.tabs[f.cl.buffer] = "grey"
 		if _, ok := f.cl.tabs[action]; ! ok {
 			f.cl.tabs[action] = "purple"
 		}

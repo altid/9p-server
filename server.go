@@ -126,7 +126,7 @@ func walkTo(c *client, req string, uid string) (os.FileInfo, string, error) {
 			file: tabsfile,
 		}
 		return ts, clientTabs, nil
-	default:
+	default:	
 		stat, err := os.Stat(fp)
 		// If we have an error here, try to get a base-level stat.
 		if err != nil {
@@ -164,10 +164,15 @@ func (srv server) Serve9P(s *styx.Session) {
 			case "/tabs":
 				t.Ropen(mktabs(fp, s.User, client))
 			default:
-				t.Ropen(os.OpenFile(fp, os.O_RDWR, 0644))
+				f, err := os.OpenFile(fp, os.O_RDWR, 0644)
+				if stat.IsDir() {
+					t.Ropen(f.Readdir(0))
+				} else {
+					t.Ropen(f, err)
+				}		
 			}
 		case styx.Tstat:
-			t.Rstat(stat, nil)
+ 			t.Rstat(stat, nil)
 		case styx.Tutimes:
 			switch t.Path() {
 			case "/", "/event", "/ctrl", "/tabs":
