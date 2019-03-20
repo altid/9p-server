@@ -56,9 +56,6 @@ func handleMessage(s *server, m *msg) error {
 	return nil
 }
 
-// TODO halfwit: Strip the color tokens off, and match the purple buffer of current 
-// So we can output `current buffer: <buffer>`
-// https://github.com/ubqt-systems/9p-server/issues/10
 func handleTabs(srv map[string]*server) {
 	var active string
 	for name, s := range srv {
