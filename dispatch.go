@@ -13,7 +13,7 @@ type servlist struct {
 	servers map[string]*server
 }
 
-func dispatchAndServe(events chan string, ctx context.Context) {
+func dispatchAndServe(ctx context.Context, events chan string) {
 	s := &servlist{
 		servers: make(map[string]*server),
 	}
@@ -22,22 +22,12 @@ func dispatchAndServe(events chan string, ctx context.Context) {
 		case <- ctx.Done():
 			break
 		case e := <-events:
-			token := strings.Fields(e)
-			switch token[0] {
-			case "quit":
-				return
-			case "new":
-				s.startService(token[1], ctx)
-			case "closed":
-				s.stopService(token[1])
-			default:
-				s.sendEvent(e)
-			}
+			sendEvent(ctx, s, e)
 		}
 	}
 }
 
-func (sl *servlist) startService(service string, ctx context.Context) {
+func (sl *servlist) startService(ctx context.Context, service string) {
 	addr := findListenAddress(service)
 	if sl.servers[addr] != nil { // Server already exists
 		return
@@ -75,9 +65,20 @@ func findServer(s *servlist, e string) *server {
 	return nil
 }
 
-func (s *servlist) sendEvent(e string) {
+func sendEvent(ctx context.Context, s *servlist, e string) {
 	srv := findServer(s, e)
 	if srv == nil {
+		return
+	}
+	token := strings.Fields(e)
+	switch token[0] {
+	case "quit":
+		return
+	case "new":
+		s.startService(ctx, token[1])
+		return
+	case "closed":
+		s.stopService(token[1])
 		return
 	}
 	// Range through clients and send events to clients connected to service

@@ -70,18 +70,7 @@ func (srv *server) newClient(service string) (*client, uuid.UUID) {
 		done: done,
 		tabs: tabs,
 	}
-	// Make sure we close off events channel when we're done
-	go func (ch chan string, done chan struct{}) {
-		for {
-			defer close(ch)
-			select {
-			case <- done:
-				return
-			}
-		}
-	}(ch, done)
 	return srv.c[cid], cid
-
 }
 
 func walkTo(c *client, req string, uid string) (os.FileInfo, string, error) {
@@ -142,6 +131,7 @@ func walkTo(c *client, req string, uid string) (os.FileInfo, string, error) {
 func (srv server) Serve9P(s *styx.Session) {
 	client, uuid := srv.newClient(path.Join(*inpath, srv.service))
 	defer close(client.done)
+	defer close(client.event)
 	defer delete(srv.c, uuid)
 	for s.Next() {
 		req := s.Request()

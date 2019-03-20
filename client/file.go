@@ -34,6 +34,9 @@ func writeFile(s *server, name string, data *content, offset int64) error {
 	}
 	return nil
 }
+
+// Hold our offset and try to read every 300ms
+// read will EOF, so sleep and do it again
 func readEvents(s *server) (chan *content, error) {
 	ctx, _ := context.WithTimeout(s.ctx, 5*time.Second)
 	tfid := s.nextfid
@@ -43,30 +46,32 @@ func readEvents(s *server) (chan *content, error) {
 		return nil, err
 	}
 	m := make(chan *content)
-	go func(m chan *content, iounit uint32, tfid p9p.Fid) {
+	go func(m chan *content, tfid p9p.Fid) {
 		defer close(m)
 		defer s.session.Clunk(ctx, s.pwdfid)
 		var offset int64
+		b := make([]byte, iounit)
 		for {
-			buff := make([]byte, iounit)
-			n, err := s.session.Read(ctx, tfid, buff, offset)
+			n, err := s.session.Read(s.ctx, tfid, b, offset)
 			switch err {
-			case io.EOF, context.DeadlineExceeded:
-				time.Sleep(300 * time.Millisecond)
-				continue
+			case io.EOF:
+				time.Sleep(500 * time.Millisecond)
+			case context.DeadlineExceeded:
+				log.Println(err)
 			default:
 				log.Print(err)
 				return
 			}
+			log.Println(b)
 			if n > 0 {
 				m <- &content{
-					buff: buff,
-					err: err,
+					buff: b,
+					err: nil,
 				}
+				offset += int64(n)
 			}
-			offset += int64(n)
 		}
-	}(m, iounit, tfid)
+	}(m, tfid)
 	return m, nil
 }
 		

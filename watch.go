@@ -43,22 +43,14 @@ func (r *tailReader) Read(p []byte) (n int, err error) {
 	}
 }
 
-type watcher struct {}
-
-func dirWatch() (*watcher, chan string) {
-	events := make(chan string)
-	w := &watcher{}
-	return w, events
-}
-
 // walk *inpath every 10 seconds to test for new services with events file
-func (w *watcher) start(event chan string, ctx context.Context) {
+func startWatcher( ctx context.Context, event chan string) {
 	servlist := make(map[string]*tail)
 	for {
 		findClosed(event, &servlist)
 		listeners := findListeners(event, &servlist)
 		for _, listener := range listeners {
-			go startListeners(event, listener, ctx)
+			go startListeners(ctx, event, listener)
 		}
 		select {
 		case <- ctx.Done():
@@ -109,7 +101,7 @@ func findListeners(event chan string, servlist *map[string]*tail) []*tailReader 
 	return listeners
 }
 
-func startListeners(event chan string, t *tailReader, ctx context.Context) {
+func startListeners(ctx context.Context, event chan string, t *tailReader) {
 	scanner := bufio.NewScanner(t)
 	for scanner.Scan() {
 		select {

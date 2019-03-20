@@ -17,14 +17,14 @@ func handleCtrl(srv map[string]*server, command string) error {
 		parts := strings.Split(buffer, "/")
 		if _, ok := srv[parts[0]]; ok && len(parts) > 1{
 			current = parts[0]
-			buffer = "buffer " + parts[1]
+			command = "buffer " + parts[1]
 		}
 	}
 	s := srv[current]
 	data := &content{
 		buff: []byte(command),
 	}
-	return writeFile(s, "ctrl", data, 0) 
+	return writeFile(s, "ctrl", data, 0)
 }
 
 func handleInput(s *server, input string) error {

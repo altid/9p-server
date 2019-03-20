@@ -25,7 +25,7 @@ func main() {
 	}
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	watcher, events := dirWatch()
-	go watcher.start(events, ctx)
-	dispatchAndServe(events, ctx)
+	events := make(chan string)
+	go startWatcher(ctx, events)
+	dispatchAndServe(ctx, events)
 }

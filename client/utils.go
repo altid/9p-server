@@ -104,8 +104,7 @@ func sendEvents(s *server, name string, event chan *msg) {
 	}
 	for m := range data {
 		if m.err != nil {
-			log.Print(err)
-			break
+			continue
 		}
 		event <- &msg{
 			msg: string(m.buff),
