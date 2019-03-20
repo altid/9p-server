@@ -55,12 +55,12 @@ func dispatch(srv map[string]*server, events chan *msg, input chan string) {
 	for {
 		select {
 		case i := <-input:
-			log.Println(i)
 			if i == "/quit" {
 				return
 			}
 			if i == "/tabs" {
 				handleTabs(srv)
+				continue
 			}
 			if i[0] == '/' && len(i) > 1 {
 				handleCtrl(srv, i[1:])

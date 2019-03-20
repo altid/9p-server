@@ -14,26 +14,24 @@ type content struct {
 	err  error
 }
 
-func writeFile(s *server, name string, data chan *content, offset int64) error {
+func writeFile(s *server, name string, data *content, offset int64) error {
 	ctx, _ := context.WithTimeout(s.ctx, 5*time.Second)
 	tfid := s.nextfid
 	s.nextfid++
-	iounit, err := walkFile(ctx, s, tfid, name, "write")
+	//iounit, err := walkFile(ctx, s, tfid, name, "write")
+	_, err := walkFile(ctx, s, tfid, name, "write")
 	if err != nil {
 		return err
 	}
-	for m := range data {
-		if m.err != nil {
-			break
-		}
-		// TODO: Handle large writes here
-		n, err := s.session.Write(ctx, tfid, m.buff[:iounit], offset)
-		if err != nil {
-			return err
-		}
-		offset += int64(n)
-	}
 	defer s.session.Clunk(ctx, s.pwdfid)
+	//while len(data.buff - offset) > iounit {
+		//n, err := s.session.Write(ctx, tfid, data.buff[:iounit], offset)
+		//offset += int64(n)
+	//}
+	_, err = s.session.Write(ctx, tfid, data.buff, offset)
+	if err != nil {
+		return err
+	}
 	return nil
 }
 func readEvents(s *server) (chan *content, error) {
@@ -93,7 +91,7 @@ func readFile(s *server, name string) (chan *content, error) {
 			}
 			if n > 0 {
 				m <- &content{
-					buff: buff[:n],
+					buff: buff,
 					err: err,
 				}
 			}

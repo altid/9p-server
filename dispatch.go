@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"log"
 	"path"
 	"path/filepath"
 	"strings"
@@ -53,7 +52,6 @@ func (sl *servlist) startService(service string, ctx context.Context) {
 		//Auth: styxauth.TLS,
 		//TLSConfig: 
 	}
-	log.Println("Adding address " + addr)
 	go styx.Serve(srv.l)
 	sl.servers[addr] = srv
 }

@@ -4,30 +4,33 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"regexp"
+	"strings"
 )
 
+// TODO(halfwit): Return any errors on an error chan here, or nil
 func handleCtrl(srv map[string]*server, command string) error {
-	// TODO: Switch on command and send the right commands
-	// Make sure we close(done) on services is we remove them
+	if strings.HasPrefix(command, "buffer ") {
+		buffer := strings.TrimPrefix(command, "buffer ")
+		parts := strings.Split(buffer, "/")
+		if _, ok := srv[parts[0]]; ok && len(parts) > 1{
+			current = parts[0]
+			buffer = "buffer " + parts[1]
+		}
+	}
 	s := srv[current]
-	data := make(chan *content)
-	defer close(data)
-	err := writeFile(s, "document", data, 0)
-	data <- &content{
+	data := &content{
 		buff: []byte(command),
 	}
-	return err
+	return writeFile(s, "ctrl", data, 0) 
 }
 
 func handleInput(s *server, input string) error {
-	data := make(chan *content)
-	defer close(data)
-	err := writeFile(s, "input", data, 0)
-	data <- &content{
+	data := &content{
 		buff: []byte(input),
 		err: nil,
 	}
-	return err
+	return writeFile(s, "input", data, 0)
 	
 }
 
@@ -42,7 +45,6 @@ func handleMessage(s *server, m *msg) error {
 	if err != nil {
 		return err
 	}
-	defer os.Stdout.Write([]byte("\n"))
 	for m := range data {
 		if m.err != nil {
 			return err
@@ -58,7 +60,7 @@ func handleMessage(s *server, m *msg) error {
 // So we can output `current buffer: <buffer>`
 // https://github.com/ubqt-systems/9p-server/issues/10
 func handleTabs(srv map[string]*server) {
-	// var active string
+	var active string
 	for name, s := range srv {
 		data, err := readFile(s, "tabs")
 		if err != nil {
@@ -66,16 +68,31 @@ func handleTabs(srv map[string]*server) {
 			continue
 		}
 		for m := range data {
-			if name == current {
-				// tabName := uncolor(?)
-				// if strings.HasSuffix(m.buff, "(purple)") {
-				//	active = tabName
-				//}
-				fmt.Printf("%s ", m.buff)
+			matches := parseTabFileChunk(string(m.buff))
+			if len(matches) < 1 {
 				continue
 			}
-			fmt.Printf("%s/%s ", name, m.buff)
+			for _, match := range matches {
+				if len(match) != 3 {
+					continue
+				}
+				if name == current {
+					if match[2] == "purple" {
+						active = match[1]
+						continue
+					}
+					fmt.Printf("%s ", match[1])
+					continue
+				}
+				fmt.Printf("%s/%s ", name, match[1])
+			}
 		}
 	}
-	//fmt.Printf("Current buffer: %s\n", active
+	fmt.Printf("\nCurrent: %s\n", active)
+}
+
+func parseTabFileChunk(tab string) [][]string {
+	r := regexp.MustCompile(`%\[([^\s]+)\]\(([^\s,]+)\)`)
+	matches := r.FindAllStringSubmatch(tab, -1)
+	return matches
 }
