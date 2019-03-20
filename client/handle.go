@@ -1,6 +1,8 @@
 package main
 
 import (
+	"bufio"
+	"bytes"
 	"fmt"
 	"log"
 	"os"
@@ -58,38 +60,33 @@ func handleMessage(s *server, m *msg) error {
 
 func handleTabs(srv map[string]*server) {
 	var active string
+	r := regexp.MustCompile(`%\[([^\s]+)\]\(([^\s,]+)\)`)
 	for name, s := range srv {
 		data, err := readFile(s, "tabs")
 		if err != nil {
 			log.Print(err)
 			continue
 		}
+		var buffers []byte
 		for m := range data {
-			matches := parseTabFileChunk(string(m.buff))
-			if len(matches) < 1 {
+			buffers = append(buffers, m.buff...)
+		}
+		reader := bufio.NewReader(bytes.NewReader(buffers))
+		for {
+			line, err := reader.ReadString('\n')
+			if err != nil {
+				break
+			}
+			matches := r.FindAllStringSubmatch(line, -1)
+			if name == current {
+				if matches[0][2] == "purple" {
+					active = matches[0][1]
+				}
+				fmt.Printf("%s ", matches[0][1])
 				continue
 			}
-			for _, match := range matches {
-				if len(match) != 3 {
-					continue
-				}
-				if name == current {
-					if match[2] == "purple" {
-						active = match[1]
-						continue
-					}
-					fmt.Printf("%s ", match[1])
-					continue
-				}
-				fmt.Printf("%s/%s ", name, match[1])
-			}
+			fmt.Printf("%s/%s ", name, matches[0][1])
 		}
 	}
 	fmt.Printf("\nCurrent: %s\n", active)
-}
-
-func parseTabFileChunk(tab string) [][]string {
-	r := regexp.MustCompile(`%\[([^\s]+)\]\(([^\s,]+)\)`)
-	matches := r.FindAllStringSubmatch(tab, -1)
-	return matches
 }
