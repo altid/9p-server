@@ -7,7 +7,11 @@ import (
 	"strings"
 
 	"aqwari.net/net/styx"
+	"aqwari.net/net/styx/styxauth"
+
 )
+
+
 
 type servlist struct {
 	servers map[string]*server
@@ -36,11 +40,19 @@ func (sl *servlist) startService(ctx context.Context, service string) {
 	if err != nil {
 		return
 	}
+	var auth styx.AuthFunc
+	if *useTLS {
+		auth = styxauth.TLSSubjectCN
+	} else {
+		whitelist := make(map[[2]string]bool)
+		q := [2]string{"halfwit", ""}
+		whitelist[q] = true
+		auth = styxauth.Whitelist(whitelist)
+	}
 	styx := styx.Server{
 		Addr: addr,
 		Handler: srv,
-		//Auth: styxauth.TLS,
-		//TLSConfig: 
+		Auth: auth,
 	}
 	go styx.Serve(srv.l)
 	sl.servers[addr] = srv

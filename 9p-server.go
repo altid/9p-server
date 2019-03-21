@@ -9,6 +9,8 @@ import (
 
 var (
 	inpath   = flag.String("p", "/tmp/ubqt", "directory to watch")
+	key      = flag.String("k", "/etc/ssl/private/ubqt.pem", "Path to key file for TLS")
+	cert     = flag.String("c", "/etc/ssl/certs/ubqt.pem", "Path to cert file for TLS")
 	username = flag.String("u", "", "user name")
 	useTLS   = flag.Bool("t", false, "Use TLS for connections")
 )

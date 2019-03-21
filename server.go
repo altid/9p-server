@@ -44,11 +44,13 @@ func newServer(addr, service string) (*server, error) {
 		l: l,
 		service: path.Base(service),
 	}
-	if *useTLS == true {
+	if *useTLS {
+		cert, err := tls.LoadX509KeyPair(*cert, *key)
+		if err != nil {
+			log.Fatal(err)
+		}
 		tlsConfig := &tls.Config{
-			// TODO halfwit: Switch to proper TLS certificates
-			// This will require parsing of the ubqt config file
-			InsecureSkipVerify: true,
+			Certificates: []tls.Certificate{cert},
 			ServerName: addr,
 		}
 		srv.l = tls.NewListener(l, tlsConfig)
