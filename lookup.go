@@ -34,8 +34,6 @@ func getBase(p string) string {
 	return path.Join(dir, target)
 }
 
-// BUG(halfwit): DefaultBuffer function should only return buffers of services it is connected to
-// this will take some reworking of how services interact with clients
 func defaultBuffer(root string) string {
 	// Recursively walk the tree down until we find a useful file
 	var result string
