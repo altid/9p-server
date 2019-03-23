@@ -19,6 +19,7 @@ type client struct {
 	buffer  string
 	service string
 	event   chan string
+	done    chan struct{}
 	tabs    map[string]string
 }
 
@@ -85,12 +86,14 @@ func (srv *server) newClient(service string) (*client, uuid.UUID) {
 	cid := uuid.New()
 	buffer := defaultBuffer(service)
 	ch := make(chan string)
+	dn := make(chan struct{})
 	tabs := make(map[string]string)
 	tabs[buffer] = "purple"
 	srv.c[cid] = &client{
 		buffer:  buffer,
 		service: service,
 		event:   ch,
+		done:    dn,
 		tabs:    tabs,
 	}
 	return srv.c[cid], cid
@@ -154,6 +157,7 @@ func walkTo(c *client, req string, uid string) (os.FileInfo, string, error) {
 func (srv server) Serve9P(s *styx.Session) {
 	client, uuid := srv.newClient(path.Join(*inpath, srv.service))
 	defer delete(srv.c, uuid)
+	defer close(client.done)
 	defer close(client.event)
 	for s.Next() {
 		req := s.Request()

@@ -2,8 +2,6 @@ package main
 
 import(
 	"context"
-	"io"
-	"log"
 	"time"
 
 	"github.com/docker/go-p9p"
@@ -14,7 +12,7 @@ type content struct {
 	err  error
 }
 
-func writeFile(s *server, name string, data *content, offset int64) error {
+func writeFile(s *server, name string, data *content) error {
 	ctx, _ := context.WithTimeout(s.ctx, 5*time.Second)
 	tfid := s.nextfid
 	s.nextfid++
@@ -24,19 +22,22 @@ func writeFile(s *server, name string, data *content, offset int64) error {
 		return err
 	}
 	defer s.session.Clunk(ctx, s.pwdfid)
+	dirstat, err := s.session.Stat(ctx, tfid)
+	end := int64(dirstat.Length)
+	if err != nil {
+		return err
+	}
 	//while len(data.buff - offset) > iounit {
-		//n, err := s.session.Write(ctx, tfid, data.buff[:iounit], offset)
+		//n, err := s.session.Write(ctx, tfid, data.buff[:iounit], end)
 		//offset += int64(n)
 	//}
-	_, err = s.session.Write(ctx, tfid, data.buff, offset)
+	_, err = s.session.Write(ctx, tfid, data.buff, end)
 	if err != nil {
 		return err
 	}
 	return nil
 }
 
-// Hold our offset and try to read every 300ms
-// read will EOF, so sleep and do it again
 func readEvents(s *server) (chan *content, error) {
 	ctx, _ := context.WithTimeout(s.ctx, 5*time.Second)
 	tfid := s.nextfid
@@ -53,16 +54,9 @@ func readEvents(s *server) (chan *content, error) {
 		b := make([]byte, iounit)
 		for {
 			n, err := s.session.Read(s.ctx, tfid, b, offset)
-			switch err {
-			case io.EOF:
+			if err != nil {
 				time.Sleep(500 * time.Millisecond)
-			case context.DeadlineExceeded:
-				log.Println(err)
-			default:
-				log.Print(err)
-				return
 			}
-			log.Println(b)
 			if n > 0 {
 				m <- &content{
 					buff: b,

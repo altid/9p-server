@@ -8,6 +8,7 @@ import (
 
 type event struct {
 	events chan string
+	done   chan struct{}
 	size   int64
 	uid    string
 }
@@ -15,6 +16,8 @@ type event struct {
 func (f *event) Read(p []byte) (n int, err error) {
 	f.size += int64(len(p))
 	select {
+	case <-f.done:
+		return 0, io.EOF
 	case s, ok := <-f.events:
 		if !ok {
 			return 0, io.EOF
@@ -47,6 +50,7 @@ func mkevent(u string, cl *client) (*event, error) {
 	e := &event{
 		uid:    u,
 		events: cl.event,
+		done:   cl.done,
 	}
 	return e, nil
 }

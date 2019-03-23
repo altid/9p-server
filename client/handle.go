@@ -18,21 +18,23 @@ func handleCtrl(srv map[string]*server, command string) error {
 		if _, ok := srv[parts[0]]; ok && len(parts) > 1{
 			current = parts[0]
 			command = "buffer " + parts[1]
+			// we gotta restart the events loop here
 		}
 	}
 	s := srv[current]
 	data := &content{
-		buff: []byte(command),
+		buff: []byte(command + "\n"),
 	}
-	return writeFile(s, "ctrl", data, 0)
+	return writeFile(s, "ctrl", data)
 }
 
 func handleInput(s *server, input string) error {
+	log.Println(input)
 	data := &content{
-		buff: []byte(input),
+		buff: []byte(input + "\n"),
 		err: nil,
 	}
-	return writeFile(s, "input", data, 0)
+	return writeFile(s, "input", data)
 	
 }
 
