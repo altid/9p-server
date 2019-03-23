@@ -2,12 +2,16 @@ package main
 
 import (
 	"crypto/tls"
+	"crypto/x509"
+	"io/ioutil"
 	"log"
 	"net"
 	"os"
 	"path"
+	"runtime"
 
 	"aqwari.net/net/styx"
+	"bitbucket.org/mischief/libauth"
 	"github.com/google/uuid"
 )
 
@@ -15,13 +19,12 @@ type client struct {
 	buffer  string
 	service string
 	event   chan string
-	done    chan struct{}
 	tabs    map[string]string
 }
 
 type server struct {
-	c map[uuid.UUID]*client
-	l net.Listener
+	c       map[uuid.UUID]*client
+	l       net.Listener
 	service string
 }
 
@@ -41,20 +44,40 @@ func newServer(addr, service string) (*server, error) {
 	srv := &server{
 		c: make(map[uuid.UUID]*client),
 
-		l: l,
+		l:       l,
 		service: path.Base(service),
 	}
 	if *useTLS {
-		cert, err := tls.LoadX509KeyPair(*cert, *key)
-		if err != nil {
-			log.Fatal(err)
+		var certificate tls.Certificate
+		switch runtime.GOOS {
+		case "plan9":
+			c, err := ioutil.ReadFile(*cert)
+			if err != nil {
+				log.Fatal(err)
+			}
+			keys, err := libauth.Listkeys()
+			for _, k := range keys {
+				pk := x509.MarshalPKCS1PublicKey(&k)
+				certificate, err = tls.X509KeyPair(c, pk)
+				if err == nil {
+					break
+				}
+			}
+		default:
+			certificate, err = tls.LoadX509KeyPair(*cert, *key)
+			if err != nil {
+				log.Fatal(err)
+			}
 		}
 		tlsConfig := &tls.Config{
-			Certificates: []tls.Certificate{cert},
+			Certificates: []tls.Certificate{
+				certificate,
+			},
 			ServerName: addr,
 		}
+		tlsConfig.BuildNameToCertificate()
 		srv.l = tls.NewListener(l, tlsConfig)
-	}  
+	}
 	return srv, nil
 }
 
@@ -62,15 +85,13 @@ func (srv *server) newClient(service string) (*client, uuid.UUID) {
 	cid := uuid.New()
 	buffer := defaultBuffer(service)
 	ch := make(chan string)
-	done := make(chan struct{})
 	tabs := make(map[string]string)
 	tabs[buffer] = "purple"
 	srv.c[cid] = &client{
-		buffer: buffer,
+		buffer:  buffer,
 		service: service,
-		event: ch,
-		done: done,
-		tabs: tabs,
+		event:   ch,
+		tabs:    tabs,
 	}
 	return srv.c[cid], cid
 }
@@ -88,7 +109,7 @@ func walkTo(c *client, req string, uid string) (os.FileInfo, string, error) {
 			log.Print(err)
 			return nil, fp, err
 		}
-		cs :=  &ctlStat{
+		cs := &ctlStat{
 			name: "ctrl",
 			file: ctlfile,
 		}
@@ -117,7 +138,7 @@ func walkTo(c *client, req string, uid string) (os.FileInfo, string, error) {
 			file: tabsfile,
 		}
 		return ts, clientTabs, nil
-	default:	
+	default:
 		stat, err := os.Stat(fp)
 		// If we have an error here, try to get a base-level stat.
 		if err != nil {
@@ -132,9 +153,8 @@ func walkTo(c *client, req string, uid string) (os.FileInfo, string, error) {
 // Called when a client connects
 func (srv server) Serve9P(s *styx.Session) {
 	client, uuid := srv.newClient(path.Join(*inpath, srv.service))
-	defer close(client.done)
-	defer close(client.event)
 	defer delete(srv.c, uuid)
+	defer close(client.event)
 	for s.Next() {
 		req := s.Request()
 		stat, fp, err := walkTo(client, req.Path(), s.User)
@@ -161,10 +181,10 @@ func (srv server) Serve9P(s *styx.Session) {
 					t.Ropen(f.Readdir(0))
 				} else {
 					t.Ropen(f, err)
-				}		
+				}
 			}
 		case styx.Tstat:
- 			t.Rstat(stat, nil)
+			t.Rstat(stat, nil)
 		case styx.Tutimes:
 			switch t.Path() {
 			case "/", "/event", "/ctrl", "/tabs":
@@ -174,7 +194,7 @@ func (srv server) Serve9P(s *styx.Session) {
 			}
 		case styx.Ttruncate:
 			switch t.Path() {
-			case "/",  "/event", "/ctrl", "/tabs":
+			case "/", "/event", "/ctrl", "/tabs":
 				t.Rtruncate(nil)
 			default:
 				t.Rtruncate(os.Truncate(fp, t.Size))

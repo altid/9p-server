@@ -60,7 +60,7 @@ func (f *ctlFile) WriteAt(p []byte, off int64) (n int, err error) {
 		}
 		if f.cl.buffer == action {
 			buffer := defaultBuffer(f.cl.service)
-			if buffer != "" {	
+			if buffer != "" {
 				f.cl.buffer = buffer
 				f.cl.tabs[buffer] = "purple"
 			}
@@ -72,7 +72,7 @@ func (f *ctlFile) WriteAt(p []byte, off int64) (n int, err error) {
 			return 0, errors.New("No resource specified to open")
 		}
 		f.cl.tabs[f.cl.buffer] = "grey"
-		if _, ok := f.cl.tabs[action]; ! ok {
+		if _, ok := f.cl.tabs[action]; !ok {
 			f.cl.tabs[action] = "purple"
 		}
 		f.cl.buffer = path.Join(f.cl.service, action)
@@ -113,7 +113,7 @@ func mkctl(ctl, uid string, cl *client) (*ctlFile, error) {
 		off:     0,
 		modTime: time.Now(),
 		uid:     uid,
-		cl:  cl,
+		cl:      cl,
 	}
 	return c, nil
 }

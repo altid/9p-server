@@ -8,10 +8,7 @@ import (
 
 	"aqwari.net/net/styx"
 	"aqwari.net/net/styx/styxauth"
-
 )
-
-
 
 type servlist struct {
 	servers map[string]*server
@@ -23,7 +20,7 @@ func dispatchAndServe(ctx context.Context, events chan string) {
 	}
 	for {
 		select {
-		case <- ctx.Done():
+		case <-ctx.Done():
 			break
 		case e := <-events:
 			sendEvent(ctx, s, e)
@@ -43,16 +40,11 @@ func (sl *servlist) startService(ctx context.Context, service string) {
 	var auth styx.AuthFunc
 	if *useTLS {
 		auth = styxauth.TLSSubjectCN
-	} else {
-		whitelist := make(map[[2]string]bool)
-		q := [2]string{"halfwit", ""}
-		whitelist[q] = true
-		auth = styxauth.Whitelist(whitelist)
 	}
 	styx := styx.Server{
-		Addr: addr,
+		Addr:    addr,
 		Handler: srv,
-		Auth: auth,
+		Auth:    auth,
 	}
 	go styx.Serve(srv.l)
 	sl.servers[addr] = srv
@@ -70,7 +62,7 @@ func (servlist *servlist) stopService(service string) {
 func findServer(s *servlist, e string) *server {
 	for _, srv := range s.servers {
 		testPath := path.Join(*inpath, srv.service)
- 		if filepath.HasPrefix(e, testPath) {
+		if filepath.HasPrefix(e, testPath) {
 			return srv
 		}
 	}
@@ -78,10 +70,6 @@ func findServer(s *servlist, e string) *server {
 }
 
 func sendEvent(ctx context.Context, s *servlist, e string) {
-	srv := findServer(s, e)
-	if srv == nil {
-		return
-	}
 	token := strings.Fields(e)
 	switch token[0] {
 	case "quit":
@@ -93,6 +81,7 @@ func sendEvent(ctx context.Context, s *servlist, e string) {
 		s.stopService(token[1])
 		return
 	}
+	srv := findServer(s, e)
 	// Range through clients and send events to clients connected to service
 	for _, c := range srv.c {
 		if path.Base(e) == "notification" {

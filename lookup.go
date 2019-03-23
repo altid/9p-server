@@ -58,9 +58,9 @@ func defaultBuffer(root string) string {
 	return result
 }
 
-// NOTE(halfwit): If the listen address isn't found here, it returns 
+// NOTE(halfwit): If the listen address isn't found here, it returns
 // just ":564", the default 9p listen port. The IP will default
-// to the first IP on the system network stack. 
+// to the first IP on the system network stack.
 func findListenAddress(service string) string {
 	listen_address := ":564"
 	confdir, err := fslib.UserConfDir()

@@ -1,6 +1,5 @@
 package main
 
-
 import (
 	"bufio"
 	"context"
@@ -44,7 +43,7 @@ func (r *tailReader) Read(p []byte) (n int, err error) {
 }
 
 // walk *inpath every 10 seconds to test for new services with events file
-func startWatcher( ctx context.Context, event chan string) {
+func startWatcher(ctx context.Context, event chan string) {
 	servlist := make(map[string]*tail)
 	for {
 		findClosed(event, &servlist)
@@ -53,9 +52,9 @@ func startWatcher( ctx context.Context, event chan string) {
 			go startListeners(ctx, event, listener)
 		}
 		select {
-		case <- ctx.Done():
+		case <-ctx.Done():
 			return
-		case <- time.After(10 * time.Second):
+		case <-time.After(10 * time.Second):
 			continue
 		}
 	}
@@ -106,7 +105,7 @@ func startListeners(ctx context.Context, event chan string, t *tailReader) {
 	for scanner.Scan() {
 		select {
 		case <-ctx.Done():
-			return	
+			return
 		case event <- scanner.Text():
 		}
 	}

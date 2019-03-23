@@ -21,7 +21,7 @@ type tabs struct {
 
 func (f *tabs) Read(b []byte) (n int, err error) {
 	n = copy(b, f.data[f.off:])
-	if int64(n) + f.off >= f.size {
+	if int64(n)+f.off >= f.size {
 		return n, io.EOF
 	}
 	return n, nil
@@ -45,7 +45,7 @@ func (f *tabs) Seek(offset int64, whence int) (int64, error) {
 	return f.off, nil
 }
 
-func (f *tabs) Close() error { 
+func (f *tabs) Close() error {
 	f.data = ""
 	return nil
 }
@@ -75,7 +75,7 @@ func mktabs(tab, uid string, cl *client) (*tabs, error) {
 	for scanner.Scan() {
 		line := scanner.Text()
 		code, ok := cl.tabs[path.Join(cl.service, line)]
-		if ! ok {
+		if !ok {
 			code = "grey"
 		}
 		msg := path.Base(line)
@@ -83,9 +83,9 @@ func mktabs(tab, uid string, cl *client) (*tabs, error) {
 		data += fmt.Sprintf("%s\n", color)
 	}
 	t := &tabs{
-		data: data,
-		uid:  uid,
-		size: int64(len(data)),
+		data:    data,
+		uid:     uid,
+		size:    int64(len(data)),
 		modtime: time.Now().Truncate(time.Hour),
 	}
 	return t, nil
