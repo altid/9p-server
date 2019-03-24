@@ -23,7 +23,8 @@ func handleCtrl(srv map[string]*server, command string) error {
 	}
 	s := srv[current]
 	data := &content{
-		buff: []byte(command + "\n"),
+		buff: []byte(command),
+		err: nil,
 	}
 	return writeFile(s, "ctrl", data)
 }
@@ -31,7 +32,7 @@ func handleCtrl(srv map[string]*server, command string) error {
 func handleInput(s *server, input string) error {
 	log.Println(input)
 	data := &content{
-		buff: []byte(input + "\n"),
+		buff: []byte(input),
 		err: nil,
 	}
 	return writeFile(s, "input", data)

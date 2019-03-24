@@ -31,6 +31,7 @@ func writeFile(s *server, name string, data *content) error {
 		//n, err := s.session.Write(ctx, tfid, data.buff[:iounit], end)
 		//offset += int64(n)
 	//}
+	data.buff = append(data.buff, '\n')
 	_, err = s.session.Write(ctx, tfid, data.buff, end)
 	if err != nil {
 		return err
@@ -51,18 +52,21 @@ func readEvents(s *server) (chan *content, error) {
 		defer close(m)
 		defer s.session.Clunk(ctx, s.pwdfid)
 		var offset int64
-		b := make([]byte, iounit)
-		for {
-			n, err := s.session.Read(s.ctx, tfid, b, offset)
+		var n int = 1
+		for ;; offset += int64(n) {
+			b := make([]byte, iounit)
+			n, err = s.session.Read(s.ctx, tfid, b, offset)
 			if err != nil {
 				time.Sleep(500 * time.Millisecond)
+				d, _ := s.session.Stat(s.ctx, tfid)
+				offset = int64(d.Length)
 			}
 			if n > 0 {
 				m <- &content{
 					buff: b,
 					err: nil,
 				}
-				offset += int64(n)
+
 			}
 		}
 	}(m, tfid)

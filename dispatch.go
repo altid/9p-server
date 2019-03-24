@@ -82,8 +82,14 @@ func sendEvent(ctx context.Context, s *servlist, e string) {
 		return
 	}
 	srv := findServer(s, e)
+	if srv == nil {
+		return
+	}
 	// Range through clients and send events to clients connected to service
 	for _, c := range srv.c {
+		if c.polling {
+			continue
+		}
 		if path.Base(e) == "notification" {
 			c.tabs[path.Dir(e)] = "red"
 		}

@@ -21,6 +21,7 @@ type client struct {
 	event   chan string
 	done    chan struct{}
 	tabs    map[string]string
+	polling bool
 }
 
 type server struct {
@@ -95,6 +96,7 @@ func (srv *server) newClient(service string) (*client, uuid.UUID) {
 		event:   ch,
 		done:    dn,
 		tabs:    tabs,
+		polling: false,
 	}
 	return srv.c[cid], cid
 }
