@@ -3,7 +3,6 @@ package main
 import (
 	"bufio"
 	"context"
-	"log"
 	"net"
 	"os"
 	"os/user"
@@ -12,14 +11,14 @@ import (
 	"github.com/docker/go-p9p"
 )
 
-func attach(srv string, ctx context.Context, event chan *msg) (*server, error) {
+func attach(srv string, ctx context.Context) (*server, error) {
 	// Docker's lib doesn't do much heavy lifting for us
 	usr, err := user.Current()
 	if err != nil {
 		return nil, err
 	}
 	d := net.Dialer{}
-	if ! strings.Contains(srv, ":") {
+	if !strings.Contains(srv, ":") {
 		srv += ":564"
 	}
 	c, err := d.DialContext(ctx, "tcp", srv)
@@ -31,11 +30,11 @@ func attach(srv string, ctx context.Context, event chan *msg) (*server, error) {
 		return nil, err
 	}
 	s := &server{
-		ctx: ctx,
-		pwd: "/",
+		ctx:     ctx,
+		pwd:     "/",
 		nextfid: 1,
 		session: session,
-		done: make(chan struct{}),
+		done:    make(chan struct{}),
 	}
 	if _, err := s.session.Attach(s.ctx, s.nextfid, p9p.NOFID, usr.Username, "/"); err != nil {
 		return nil, err
@@ -47,39 +46,31 @@ func attach(srv string, ctx context.Context, event chan *msg) (*server, error) {
 	}
 	s.pwdfid = s.nextfid
 	s.nextfid++
-	go sendEvents(s, srv, event)
 	return s, nil
 }
 
-func dispatch(srv map[string]*server, events chan *msg, input chan string) {
-	for {
-		select {
-		case i := <-input:
-			if i == "/quit" {
-				return
-			}
-			if i == "/tabs" {
-				handleTabs(srv)
-				continue
-			}
+func dispatch(srv map[string]*server, input chan string) {
+	for i := range input {
+		switch i {
+		case "/quit":
+			return
+		case "/tabs":
+			handleTabs(srv)
+		case "/status":
+			handleStatus(srv[current])
+		case "/sidebar":
+			handleSide(srv[current])
+		case "/title":
+			handleTitle(srv[current])
+		default:
 			if i[0] == '/' && len(i) > 1 {
 				handleCtrl(srv, i[1:])
 				continue
 			}
 			handleInput(srv[current], i)
-		
-		case event := <-events:
-			log.Println(event)
-			if event.srv == current {
-				err := handleMessage(srv[current], event)
-				if err != nil {
-					log.Print(err)
-				}
-			}
 		}
 	}
 }
-
 
 func readStdin(ctx context.Context) chan string {
 	input := make(chan string)
@@ -94,22 +85,4 @@ func readStdin(ctx context.Context) chan string {
 		}
 	}(ctx, input)
 	return input
-}
-
-func sendEvents(s *server, name string, event chan *msg) {
-	data, err := readEvents(s)
-	if err != nil {
-		log.Print(err)
-		return
-	}
-	for m := range data {
-		if m.err != nil {
-			continue
-		}
-		event <- &msg{
-			msg: string(m.buff),
-			srv: name,
-		}
-	}
-	log.Print("Ending events loop")
 }

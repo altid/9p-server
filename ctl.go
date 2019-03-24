@@ -45,6 +45,9 @@ func (f *ctlFile) WriteAt(p []byte, off int64) (n int, err error) {
 	// String() sets the value of buffer to <nil> should it be empty
 	// The Lstat will fail, and the message will be descriptive for all cases
 	switch strings.TrimSpace(command) {
+	// TODO(halfwit): Currently we only support a single service per listen_address, etc
+	// We want to be able to switch services here
+	// https://github.com/ubqt-systems/9p-server/issues/11
 	case "buffer":
 		f.cl.tabs[f.cl.buffer] = "grey"
 		current := path.Join(f.cl.service, action)
@@ -83,7 +86,7 @@ func (f *ctlFile) WriteAt(p []byte, off int64) (n int, err error) {
 		return
 	}
 	defer f.Close()
-	return fp.WriteString(command + " " + action)
+	return fp.WriteString(command + " " + action + "\n")
 }
 
 func (f *ctlFile) Close() error { return nil }

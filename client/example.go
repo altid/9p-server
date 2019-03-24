@@ -4,11 +4,15 @@ import (
 	"context"
 	"log"
 	"os"
-	
+
 	"github.com/docker/go-p9p"
 )
 
-var current string
+var (
+	current string
+	polling map[uint32]bool
+	last uint32
+)
 
 type msg struct {
 	srv string
@@ -16,13 +20,18 @@ type msg struct {
 }
 
 type server struct {
-	ctx context.Context
+	ctx     context.Context
 	session p9p.Session
-	pwd string
-	pwdfid p9p.Fid
+	pwd     string
+	pwdfid  p9p.Fid
 	rootfid p9p.Fid
 	nextfid p9p.Fid
-	done chan struct{}
+	done    chan struct{}
+}
+
+func init() {
+	polling = make(map[uint32]bool)
+	polling[0] = false
 }
 
 func main() {
@@ -32,9 +41,8 @@ func main() {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	servlist := make(map[string]*server)
-	events := make(chan *msg)
 	for _, arg := range os.Args[1:] {
-		c, err := attach(arg, ctx, events)
+		c, err := attach(arg, ctx)
 		if err != nil {
 			log.Print(err)
 			continue
@@ -45,20 +53,7 @@ func main() {
 	if len(servlist) < 1 {
 		log.Fatal("Unable to connect")
 	}
-	tries := []string{
-		"document",
-		"feed",
-		"stream",
-	}
-	for _, i := range tries {
-		err := handleMessage(servlist[current], &msg{
-			srv: current,
-			msg: i,
-		})
-		if err == nil {
-			break
-		}
-	}
+	handleMessage(servlist[current])
 	input := readStdin(ctx)
-	dispatch(servlist, events, input)
+	dispatch(servlist, input)
 }

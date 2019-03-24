@@ -7,6 +7,16 @@ This client is a very simple client which writes the body of `document` or write
 
 `example <ip address> [<ip address> ...]`
 
-Anything typed in the terminal will be read as stdin.
-To quit, type `/exit`
+## Commands
 
+Any input with a leading slash will be read as a command, and sent through to the underlying service, except for the following
+
+ - `/tabs` will list all current buffers
+ - `/sidebar` will list the items in the sidebar
+ - `/status` will print the current buffer status
+ - `/title` will print the current buffer title
+ - `/quit` will end the program
+
+## Input
+
+Any text without a leading slash will be written to the `input` file of the given buffer, if it exists. If input is disabled for the buffer, an error will be returned.
