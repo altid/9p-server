@@ -62,7 +62,7 @@ func readFile(s *server, name string, uuid uint32) (chan *content, error) {
 				}
 			}
 			if err == io.EOF && polling[uuid] {
-				time.Sleep(300 * time.Millisecond)
+				time.Sleep(500 * time.Millisecond)
 				err = nil
 			}
 			if err != nil {

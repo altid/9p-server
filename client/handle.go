@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	"github.com/google/uuid"
+	"github.com/ubqt-systems/cleanmark"
 )
 
 // TODO(halfwit): Return any errors on an error chan here, or nil
@@ -58,9 +59,19 @@ func handleMessage(s *server) {
 				if m.err != nil {
 					return
 				}
-				//TODO: Scrub out color, url, image
-				if _, err := os.Stdout.Write(m.buff); err != nil {
-					return
+				l := cleanmark.NewLexer(m.buff)
+				var dst strings.Builder
+LOOP:
+				for {
+					i := l.Next()
+					switch i.ItemType {
+					case cleanmark.EOF:
+						os.Stdout.WriteString(dst.String())
+						 break LOOP
+					case cleanmark.ColorCode:
+						continue
+					}
+					dst.Write(i.Data)
 				}
 			}
 		}(i, id)
@@ -114,6 +125,7 @@ func handleSide(srv *server) error {
 	return nil
 }
 
+// TODO: Lexer
 func handleTabs(srv map[string]*server) {
 	var active string
 	r := regexp.MustCompile(`%\[([^\s]+)\]\(([^\s,]+)\)`)
