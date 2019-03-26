@@ -51,6 +51,13 @@ func readFile(s *server, name string, uuid uint32) (chan *content, error) {
 		defer close(m)
 		defer s.session.Clunk(s.ctx, s.pwdfid)
 		var offset int64
+		if name == "feed" {
+			// we only want up to *scrollback from a given buffer
+			dir, _ := s.session.Stat(s.ctx, tfid)
+			if dir.Length > *scrollback {
+				offset = int64(dir.Length - *scrollback)
+			}
+		}
 		for {
 			buff := make([]byte, iounit)
 			n, err := s.session.Read(s.ctx, tfid, buff, offset)

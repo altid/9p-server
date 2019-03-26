@@ -2,13 +2,16 @@ package main
 
 import (
 	"bufio"
+	"bytes"
 	"context"
+	"fmt"
 	"net"
 	"os"
 	"os/user"
 	"strings"
 
 	"github.com/docker/go-p9p"
+	"github.com/ubqt-systems/cleanmark"
 )
 
 func attach(srv string, ctx context.Context) (*server, error) {
@@ -85,4 +88,56 @@ func readStdin(ctx context.Context) chan string {
 		}
 	}(ctx, input)
 	return input
+}
+
+func clean(m *content) []byte {
+	l := cleanmark.NewLexer(m.buff)
+	var dst bytes.Buffer
+	for {
+		i := l.Next()
+		switch i.ItemType {
+		case cleanmark.EOF:
+			return dst.Bytes()
+		case cleanmark.ColorCode, cleanmark.ImagePath:
+			continue
+		case cleanmark.UrlLink, cleanmark.ImageLink:
+			s := fmt.Sprintf(" (%s) ", i.Data)
+			dst.WriteString(s)
+		default:
+			dst.Write(i.Data)
+		}
+	}
+	return dst.Bytes()
+}
+
+func tabs(b []byte, srv string) []byte {
+	var dst, last []byte
+	l := cleanmark.NewLexer(b)
+	for {
+		i := l.Next()
+		switch i.ItemType {
+		case cleanmark.EOF:
+			return dst
+		case cleanmark.ColorCode:
+			switch string(i.Data) {
+			case cleanmark.Red:
+				dst = append(dst, '!')
+			case cleanmark.Blue:
+				dst = append(dst, '+')
+			case cleanmark.Purple:
+				if srv == current {
+					dst = append(dst, '*')
+				}
+			}
+			if srv != current {
+				dst = append(dst, srv...)
+				dst = append(dst, '/')
+			}
+			dst = append(dst, last...)
+			dst = append(dst, ' ')
+		case cleanmark.ColorText:
+			last = i.Data			
+		}
+	}
+	return dst
 }

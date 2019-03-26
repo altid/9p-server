@@ -2,15 +2,12 @@ package main
 
 import (
 	"bufio"
-	"bytes"
 	"fmt"
 	"log"
 	"os"
-	"regexp"
 	"strings"
 
 	"github.com/google/uuid"
-	"github.com/ubqt-systems/cleanmark"
 )
 
 // TODO(halfwit): Return any errors on an error chan here, or nil
@@ -59,20 +56,7 @@ func handleMessage(s *server) {
 				if m.err != nil {
 					return
 				}
-				l := cleanmark.NewLexer(m.buff)
-				var dst strings.Builder
-LOOP:
-				for {
-					i := l.Next()
-					switch i.ItemType {
-					case cleanmark.EOF:
-						os.Stdout.WriteString(dst.String())
-						 break LOOP
-					case cleanmark.ColorCode:
-						continue
-					}
-					dst.Write(i.Data)
-				}
+				os.Stdout.Write(clean(m))
 			}
 		}(i, id)
 	}
@@ -84,7 +68,7 @@ func handleStatus(srv *server) error {
 		return err
 	}
 	for m := range data {
-		if _, err := os.Stdout.Write(m.buff); err != nil {
+		if _, err := os.Stdout.Write(clean(m)); err != nil {
 			return err
 		}
 	}
@@ -97,7 +81,7 @@ func handleTitle(srv *server) error {
 		return err
 	}
 	for m := range data {
-		if _, err := os.Stdout.Write(m.buff); err != nil {
+		if _, err := os.Stdout.Write(clean(m)); err != nil {
 			return err
 		}
 	}
@@ -109,11 +93,11 @@ func handleSide(srv *server) error {
 	if err != nil {
 		return err
 	}
-	var buffer []byte
+	var buffer strings.Builder
 	for m := range data {
-		buffer = append(buffer, m.buff...)
+		buffer.Write(clean(m))
 	}
-	reader := bufio.NewReader(bytes.NewReader(buffer))
+	reader := bufio.NewReader(strings.NewReader(buffer.String()))
 	for {
 		line, err := reader.ReadString('\n')
 		if err != nil {
@@ -125,42 +109,15 @@ func handleSide(srv *server) error {
 	return nil
 }
 
-// TODO: Lexer
 func handleTabs(srv map[string]*server) {
-	var active string
-	r := regexp.MustCompile(`%\[([^\s]+)\]\(([^\s,]+)\)`)
 	for name, s := range srv {
 		data, err := readFile(s, "tabs", 0)
 		if err != nil {
 			log.Print(err)
 			continue
 		}
-		var buffers []byte
 		for m := range data {
-			buffers = append(buffers, m.buff...)
-		}
-		reader := bufio.NewReader(bytes.NewReader(buffers))
-		for {
-			line, err := reader.ReadString('\n')
-			if err != nil {
-				break
-			}
-			matches := r.FindAllStringSubmatch(line, -1)
-			if matches[0][2] == "blue" {
-				fmt.Printf("+")
-			}
-			if matches[0][2] == "red" {
-				fmt.Printf("!")
-			}
-			if name == current {
-				if matches[0][2] == "purple" {
-					active = matches[0][1]
-				}
-				fmt.Printf("%s ", matches[0][1])
-				continue
-			}
-			fmt.Printf("%s/%s ", name, matches[0][1])
+			fmt.Fprintf(os.Stdout, "%s\n", tabs(m.buff, name))	
 		}
 	}
-	fmt.Printf("\nCurrent: %s\n", active)
 }

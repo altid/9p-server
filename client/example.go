@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"flag"
 	"log"
 	"os"
 
@@ -9,6 +10,7 @@ import (
 )
 
 var (
+	scrollback = flag.Uint64("s", 8000, "Characters of scrollback in feed files")
 	current string
 	polling map[uint32]bool
 	last uint32
@@ -35,13 +37,18 @@ func init() {
 }
 
 func main() {
-	if len(os.Args) <= 1 {
-		log.Fatalf("Usage: %s <service> [<service>...]\n", os.Args[0])
+	flag.Parse()
+	if flag.Lookup("h") != nil {
+		flag.Usage()
+		os.Exit(0)
+	}
+	if flag.NArg() < 1 {
+		log.Fatalf("Usage: %s <service> [<service>...]\n", flag.Arg(0))
 	}
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	servlist := make(map[string]*server)
-	for _, arg := range os.Args[1:] {
+	for _, arg := range flag.Args() {
 		c, err := attach(arg, ctx)
 		if err != nil {
 			log.Print(err)
