@@ -136,7 +136,7 @@ func tabs(b []byte, srv string) []byte {
 			dst = append(dst, last...)
 			dst = append(dst, ' ')
 		case cleanmark.ColorText:
-			last = i.Data			
+			last = i.Data
 		}
 	}
 	return dst

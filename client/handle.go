@@ -117,7 +117,7 @@ func handleTabs(srv map[string]*server) {
 			continue
 		}
 		for m := range data {
-			fmt.Fprintf(os.Stdout, "%s\n", tabs(m.buff, name))	
+			fmt.Fprintf(os.Stdout, "%s\n", tabs(m.buff, name))
 		}
 	}
 }

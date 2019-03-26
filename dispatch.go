@@ -91,7 +91,7 @@ func sendEvent(ctx context.Context, s *servlist, e string) {
 		if path.Base(e) == "notification" {
 			c.tabs[path.Dir(e)] = "red"
 		}
-		if ! c.polling {
+		if !c.polling {
 			continue
 		}
 		current := path.Join(*inpath, path.Base(c.service), path.Base(c.buffer))

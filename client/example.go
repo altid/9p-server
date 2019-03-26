@@ -11,9 +11,9 @@ import (
 
 var (
 	scrollback = flag.Uint64("s", 8000, "Characters of scrollback in feed files")
-	current string
-	polling map[uint32]bool
-	last uint32
+	current    string
+	polling    map[uint32]bool
+	last       uint32
 )
 
 type msg struct {

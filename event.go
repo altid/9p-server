@@ -27,12 +27,12 @@ func (f *event) Read(p []byte) (n int, err error) {
 	return n, io.EOF
 }
 
-func (f *event) Close() error { 
-	return nil 
+func (f *event) Close() error {
+	return nil
 }
 
-func (f *event) Uid() string  { return f.uid }
-func (f *event) Gid() string  { return f.uid }
+func (f *event) Uid() string { return f.uid }
+func (f *event) Gid() string { return f.uid }
 
 type eventStat struct {
 	name string
