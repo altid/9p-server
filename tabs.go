@@ -70,6 +70,7 @@ func (s *tabsStat) Size() int64        { return s.file.size }
 func mktabs(tab, uid string, cl *client) (*tabs, error) {
 	var data string
 	tf, err := os.Open(tab)
+	defer tf.Close()
 	if err != nil {
 		return nil, err
 	}

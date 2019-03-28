@@ -105,6 +105,7 @@ func startListeners(ctx context.Context, event chan string, t *tailReader) {
 	for scanner.Scan() {
 		select {
 		case <-ctx.Done():
+			t.Close()
 			return
 		case event <- scanner.Text():
 		}
