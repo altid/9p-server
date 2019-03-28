@@ -75,6 +75,10 @@ LOOP:
 	}
 }
 
+// TODO(halfwit): For something with possibly nested buffers, we need walk to recurse through all buffers in our *mtpt
+// In an example, we could have httpfs with clients connected at `github.com`, `github.com/ubqt-systems`, and `github.com/ubqt-systems/9p-server`; we want to be able to list all of them as buffers 
+// (httpfs will be designed so that only pages that clients are currently visiting are available under $mtpt/http/, to keep buffer managament sane)
+https://github.com/ubqt-systems/9p-server/issues/13
 func findListeners(event chan string, servlist *map[string]*tail) []*tailReader {
 	var listeners []*tailReader
 	glob := path.Join(*inpath, "*", "event")
