@@ -49,6 +49,7 @@ func attach(srv string, ctx context.Context) (*server, error) {
 	}
 	s.pwdfid = s.nextfid
 	s.nextfid++
+	handleTab(srv, s)
 	return s, nil
 }
 
@@ -110,7 +111,20 @@ func clean(m *content) []byte {
 	return dst.Bytes()
 }
 
-func tabs(b []byte, srv string) []byte {
+func buildCtlMsg(s *server, action, content string) ([]byte, error) {
+	var buff bytes.Buffer
+	buff.WriteString(action + " ")
+	buff.WriteString(s.current + " ")
+	buff.WriteString(content)
+	return buff.Bytes(), nil
+}
+
+func split(in string) (action, content string) {
+	token := strings.Fields(in)
+	return token[0], strings.Join(token[1:], " ")
+}
+
+func tabs(s *server, b []byte, srv string) []byte {
 	var dst, last []byte
 	l := cleanmark.NewLexer(b)
 	for {
@@ -128,6 +142,7 @@ func tabs(b []byte, srv string) []byte {
 				if srv == current {
 					dst = append(dst, '*')
 				}
+				s.current = string(last)
 			}
 			if srv != current {
 				dst = append(dst, srv...)
@@ -141,3 +156,4 @@ func tabs(b []byte, srv string) []byte {
 	}
 	return dst
 }
+

@@ -24,6 +24,7 @@ type msg struct {
 type server struct {
 	ctx     context.Context
 	session p9p.Session
+	current string
 	pwd     string
 	pwdfid  p9p.Fid
 	rootfid p9p.Fid

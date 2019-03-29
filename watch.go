@@ -10,6 +10,8 @@ import (
 	"time"
 )
 
+var Servlist = make(map[string]*tail)
+
 type tail struct {
 	event chan string
 	name  string
@@ -44,10 +46,9 @@ func (r *tailReader) Read(p []byte) (n int, err error) {
 
 // walk *inpath every 10 seconds to test for new services with events file
 func startWatcher(ctx context.Context, event chan string) {
-	servlist := make(map[string]*tail)
 	for {
-		findClosed(event, &servlist)
-		listeners := findListeners(event, &servlist)
+		findClosed(event)
+		listeners := findListeners(event)
 		for _, listener := range listeners {
 			go startListeners(ctx, event, listener)
 		}
@@ -60,17 +61,17 @@ func startWatcher(ctx context.Context, event chan string) {
 	}
 }
 
-func findClosed(event chan string, servlist *map[string]*tail) {
+func findClosed(event chan string) {
 	glob := path.Join(*inpath, "*", "event")
 	files, _ := filepath.Glob(glob)
 LOOP:
-	for sname, _ := range *servlist {
+	for sname, _ := range Servlist {
 		for _, file := range files {
 			if file == sname {
 				continue LOOP
 			}
 		}
-		delete(*servlist, sname)
+		delete(Servlist, sname)
 		event <- "closed " + sname
 	}
 }
@@ -78,14 +79,13 @@ LOOP:
 // TODO(halfwit): For something with possibly nested buffers, we need walk to recurse through all buffers in our *mtpt
 // In an example, we could have httpfs with clients connected at `github.com`, `github.com/ubqt-systems`, and `github.com/ubqt-systems/9p-server`; we want to be able to list all of them as buffers 
 // (httpfs will be designed so that only pages that clients are currently visiting are available under $mtpt/http/, to keep buffer managament sane)
-https://github.com/ubqt-systems/9p-server/issues/13
-func findListeners(event chan string, servlist *map[string]*tail) []*tailReader {
+// https://github.com/ubqt-systems/9p-server/issues/13
+func findListeners(event chan string) []*tailReader {
 	var listeners []*tailReader
 	glob := path.Join(*inpath, "*", "event")
 	files, _ := filepath.Glob(glob)
-	s := *servlist
 	for _, file := range files {
-		if s[file] != nil {
+		if Servlist[file] != nil {
 			continue
 		}
 		t := &tail{
@@ -96,11 +96,10 @@ func findListeners(event chan string, servlist *map[string]*tail) []*tailReader 
 		if err != nil {
 			continue
 		}
-		s[file] = t
+		Servlist[file] = t
 		listeners = append(listeners, reader)
 		event <- "new " + path.Dir(file)
 	}
-	*servlist = s
 	return listeners
 }
 

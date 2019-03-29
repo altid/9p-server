@@ -85,8 +85,8 @@ func (f *ctlFile) WriteAt(p []byte, off int64) (n int, err error) {
 	if err != nil {
 		return
 	}
-	defer f.Close()
-	return fp.WriteString(command + " " + action + "\n")
+	defer fp.Close()
+	return fp.Write(p)
 }
 
 func (f *ctlFile) Close() error { return nil }

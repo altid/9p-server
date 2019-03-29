@@ -12,19 +12,29 @@ import (
 
 // TODO(halfwit): Return any errors on an error chan here, or nil
 func handleCtrl(srv map[string]*server, command string) error {
-	if strings.HasPrefix(command, "buffer ") {
-		buffer := strings.TrimPrefix(command, "buffer ")
-		parts := strings.Split(buffer, "/")
+	s := srv[current]
+	data := &content{
+		buff: []byte(command),
+		err: nil,
+	}
+	action, content := split(command)
+	switch action {
+	case "buffer":
+		parts := strings.Split(content, "/")
 		if _, ok := srv[parts[0]]; ok && len(parts) > 1 {
 			current = parts[0]
 			command = "buffer " + strings.Join(parts[1:], "/")
 		}
 		defer handleMessage(srv[current])
-	}
-	s := srv[current]
-	data := &content{
-		buff: []byte(command),
-		err:  nil,
+		return writeFile(s, "ctrl", data)
+	case "open", "close":
+		return writeFile(s, "ctrl", data)
+	default:
+		var err error
+		data.buff, err = buildCtlMsg(s, action, content)
+		if err != nil {
+			return err
+		}
 	}
 	return writeFile(s, "ctrl", data)
 }
@@ -111,13 +121,17 @@ func handleSide(srv *server) error {
 
 func handleTabs(srv map[string]*server) {
 	for name, s := range srv {
-		data, err := readFile(s, "tabs", 0)
-		if err != nil {
-			log.Print(err)
-			continue
-		}
-		for m := range data {
-			fmt.Fprintf(os.Stdout, "%s\n", tabs(m.buff, name))
-		}
+		handleTab(name, s)
+	}
+}
+
+func handleTab(name string, s *server) {
+	data, err := readFile(s, "tabs", 0)
+	if err != nil {
+		log.Print(err)
+		return
+	}
+	for m := range data {
+		fmt.Fprintf(os.Stdout, "%s\n", tabs(s, m.buff, name))
 	}
 }
