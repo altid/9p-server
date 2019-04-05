@@ -67,7 +67,7 @@ func findListenAddress(service string) string {
 	if err != nil {
 		return listen_address
 	}
-	conf, err := ndb.Open(path.Join(confdir, "altid/config"))
+	conf, err := ndb.Open(path.Join(confdir, "altid", "config"))
 	if err != nil {
 		return listen_address
 	}
