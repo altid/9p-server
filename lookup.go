@@ -7,12 +7,12 @@ import (
 	"strings"
 
 	"github.com/mischief/ndb"
-	"github.com/ubqt-systems/fslib"
+	"github.com/altid/fslib"
 )
 
 // NOTE(halfwit): getBase will see if file exists at base of current file server
-// example: running with the irc fileserver at /home/user/ubqt/irc
-// it will search for /home/user/ubqt/irc/somebuffer/somefile
+// example: running with the irc fileserver at /home/user/altid/irc
+// it will search for /home/user/altid/irc/somebuffer/somefile
 // and walk back in the dir structure until it finds the file
 // or the path gets trimmed down to *inpath or "/"
 func getBase(p string) string {
@@ -67,7 +67,7 @@ func findListenAddress(service string) string {
 	if err != nil {
 		return listen_address
 	}
-	conf, err := ndb.Open(path.Join(confdir, "ubqt.cfg"))
+	conf, err := ndb.Open(path.Join(confdir, "altid/config"))
 	if err != nil {
 		return listen_address
 	}

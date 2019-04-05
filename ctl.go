@@ -29,6 +29,8 @@ func (f *ctlFile) ReadAt(b []byte, off int64) (n int, err error) {
 	return
 }
 
+// TODO(halfwit): We want to break out the tab coloration to parsing event writes, instead of needing open/close to wrap it - as the buffer name passed in may not be the name of the eventual tabs
+// And 
 func (f *ctlFile) WriteAt(p []byte, off int64) (n int, err error) {
 	size := len(p)
 	f.modTime = time.Now().Truncate(time.Hour)
@@ -47,7 +49,7 @@ func (f *ctlFile) WriteAt(p []byte, off int64) (n int, err error) {
 	switch strings.TrimSpace(command) {
 	// TODO(halfwit): Currently we only support a single service per listen_address, etc
 	// We want to be able to switch services here
-	// https://github.com/ubqt-systems/9p-server/issues/11
+	// https://github.com/altid/9p-server/issues/11
 	case "buffer":
 		f.cl.tabs[f.cl.buffer] = "grey"
 		current := path.Join(f.cl.service, action)
@@ -68,6 +70,13 @@ func (f *ctlFile) WriteAt(p []byte, off int64) (n int, err error) {
 				f.cl.tabs[buffer] = "purple"
 			}
 		}
+	case "link":
+		if action == "<nil>" {
+			return 0, errors.New("No resource specified to switch to")
+		}
+		delete(f.cl.tabs, f.cl.buffer)
+		f.cl.tabs[action] = "purple"
+		f.cl.buffer = path.Join(f.cl.service, action)
 	// NOTE(halfwit): Same as above, nil means the buffer was empty
 	// when we tried to read on it
 	case "open":

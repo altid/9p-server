@@ -27,7 +27,7 @@ func handleCtrl(srv map[string]*server, command string) error {
 		}
 		defer handleMessage(srv[current])
 		return writeFile(s, "ctrl", data)
-	case "open", "close":
+	case "open", "close", "link":
 		return writeFile(s, "ctrl", data)
 	default:
 		var err error

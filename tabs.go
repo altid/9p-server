@@ -8,7 +8,7 @@ import (
 	"path"
 	"time"
 
-	"github.com/ubqt-systems/cleanmark"
+	"github.com/altid/cleanmark"
 )
 
 type tabs struct {
@@ -66,7 +66,7 @@ func (s *tabsStat) Mode() os.FileMode  { return 0644 }
 func (s *tabsStat) Size() int64        { return s.file.size }
 
 // BUGS(halfwit): The current implementation doesn't always correctly mark a given clients' current buffer as purple
-// https://github.com/ubqt-systems/9p-server/issues/12
+// https://github.com/altid/9p-server/issues/12
 func mktabs(tab, uid string, cl *client) (*tabs, error) {
 	var data string
 	tf, err := os.Open(tab)

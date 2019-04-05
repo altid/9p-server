@@ -11,7 +11,7 @@ import (
 	"strings"
 
 	"github.com/docker/go-p9p"
-	"github.com/ubqt-systems/cleanmark"
+	"github.com/altid/cleanmark"
 )
 
 func attach(srv string, ctx context.Context) (*server, error) {
@@ -67,7 +67,7 @@ func dispatch(srv map[string]*server, input chan string) {
 		case "/title":
 			handleTitle(srv[current])
 		default:
-			if i[0] == '/' && len(i) > 1 {
+			if len(i) > 1 && i[0] == '/' {
 				handleCtrl(srv, i[1:])
 				continue
 			}
