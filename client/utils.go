@@ -4,7 +4,6 @@ import (
 	"bufio"
 	"bytes"
 	"context"
-	"fmt"
 	"net"
 	"os"
 	"os/user"
@@ -93,22 +92,7 @@ func readStdin(ctx context.Context) chan string {
 
 func clean(m *content) []byte {
 	l := cleanmark.NewLexer(m.buff)
-	var dst bytes.Buffer
-	for {
-		i := l.Next()
-		switch i.ItemType {
-		case cleanmark.EOF:
-			return dst.Bytes()
-		case cleanmark.ColorCode, cleanmark.ImagePath:
-			continue
-		case cleanmark.UrlLink, cleanmark.ImageLink:
-			s := fmt.Sprintf(" (%s) ", i.Data)
-			dst.WriteString(s)
-		default:
-			dst.Write(i.Data)
-		}
-	}
-	return dst.Bytes()
+	return l.Bytes()
 }
 
 func buildCtlMsg(s *server, action, content string) ([]byte, error) {
