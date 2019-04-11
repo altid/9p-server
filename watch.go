@@ -40,7 +40,7 @@ func (r *tailReader) Read(p []byte) (n int, err error) {
 		} else if err != io.EOF {
 			return n, err
 		}
-		time.Sleep(300 * time.Millisecond)
+		time.Sleep(500 * time.Millisecond)
 	}
 }
 

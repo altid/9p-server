@@ -2,6 +2,7 @@ package main
 
 import (
 	"bufio"
+	"bytes"
 	"fmt"
 	"log"
 	"os"
@@ -24,10 +25,21 @@ func handleCtrl(srv map[string]*server, command string) error {
 		if _, ok := srv[parts[0]]; ok && len(parts) > 1 {
 			current = parts[0]
 			command = "buffer " + strings.Join(parts[1:], "/")
+			data.buff = []byte(command)
 		}
 		defer handleMessage(srv[current])
 		return writeFile(s, "ctrl", data)
-	case "open", "close", "link":
+	case "open", "close":
+		defer handleMessage(srv[current])
+		return writeFile(s, "ctrl", data)
+	case "link":
+		var dst bytes.Buffer
+		dst.WriteString("link ")
+		dst.WriteString(s.current)
+		dst.WriteString(" ")
+		dst.WriteString(content)
+		data.buff = dst.Bytes()
+		defer handleMessage(srv[current])
 		return writeFile(s, "ctrl", data)
 	default:
 		var err error

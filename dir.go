@@ -15,14 +15,14 @@ type dir struct {
 	done chan struct{}
 }
 
-func mkdir(filepath, uid string, cl *client) *dir {
+func mkdir(fp, uid string, cl *client) *dir {
 	c := make(chan os.FileInfo, 10)
 	done := make(chan struct{})
-	list, err := ioutil.ReadDir(filepath)
+	list, err := ioutil.ReadDir(fp)
 	if err != nil {
 		return nil
 	}
-	ctlfile, err := mkctl(getBase(path.Join(filepath, "ctrl")), uid, cl)
+	ctlfile, err := mkctl(getBase(path.Join(fp, "ctrl")), uid, cl)
 	if err != nil {
 		log.Println(err)
 		return nil
@@ -34,7 +34,7 @@ func mkdir(filepath, uid string, cl *client) *dir {
 		return nil
 	}
 	list = append(list, &eventStat{name: "event", file: eventfile})
-	tabsfile, err := mktabs(getBase(path.Join(filepath, "tabs")), uid, cl)
+	tabsfile, err := mktabs(getBase(path.Join(fp, "tabs")), uid, cl)
 	if err != nil {
 		log.Println(err)
 		return nil
@@ -53,7 +53,7 @@ func mkdir(filepath, uid string, cl *client) *dir {
 	return &dir{
 		c:    c,
 		done: done,
-		name: filepath,
+		name: fp,
 	}
 }
 

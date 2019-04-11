@@ -74,19 +74,20 @@ func (f *ctlFile) WriteAt(p []byte, off int64) (n int, err error) {
 		if action == "<nil>" {
 			return 0, errors.New("No resource specified to switch to")
 		}
-		delete(f.cl.tabs, f.cl.buffer)
-		f.cl.tabs[action] = "purple"
-		f.cl.buffer = path.Join(f.cl.service, action)
+		tokens := strings.Fields(action)
+		if len(tokens) < 2 {
+			return 0, errors.New("Not enough parameters for link request")
+		}
+		delete(f.cl.tabs, tokens[0])
+		f.cl.tabs[tokens[1]] = "purple"
+		f.cl.buffer = path.Join(f.cl.service, tokens[1])
 	// NOTE(halfwit): Same as above, nil means the buffer was empty
-	// when we tried to read on it
 	case "open":
 		if action == "<nil>" {
 			return 0, errors.New("No resource specified to open")
 		}
 		f.cl.tabs[f.cl.buffer] = "grey"
-		if _, ok := f.cl.tabs[action]; !ok {
-			f.cl.tabs[action] = "purple"
-		}
+		f.cl.tabs[action] = "purple"
 		f.cl.buffer = path.Join(f.cl.service, action)
 	}
 	name := path.Join(f.cl.service, "ctrl")

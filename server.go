@@ -105,7 +105,7 @@ func walkTo(c *client, req string, uid string) (os.FileInfo, string, error) {
 	fp := path.Join(c.buffer, req)
 	switch req {
 	case "/":
-		stat, err := os.Stat(c.buffer)
+		stat, err := os.Lstat(c.buffer)
 		return stat, fp, err
 	case "/ctrl":
 		clientCtl := getBase(fp)
@@ -144,11 +144,11 @@ func walkTo(c *client, req string, uid string) (os.FileInfo, string, error) {
 		}
 		return ts, clientTabs, nil
 	default:
-		stat, err := os.Stat(fp)
+		stat, err := os.Lstat(fp)
 		// If we have an error here, try to get a base-level stat.
 		if err != nil {
 			clientFp := getBase(fp)
-			stat, err := os.Stat(clientFp)
+			stat, err := os.Lstat(clientFp)
 			return stat, clientFp, err
 		}
 		return stat, fp, nil
@@ -171,6 +171,8 @@ func (srv server) Serve9P(s *styx.Session) {
 		switch t := req.(type) {
 		case styx.Twalk:
 			t.Rwalk(stat, nil)
+		case styx.Tstat:
+			t.Rstat(stat, nil)
 		case styx.Topen:
 			switch t.Path() {
 			case "/":
@@ -182,15 +184,12 @@ func (srv server) Serve9P(s *styx.Session) {
 			case "/tabs":
 				t.Ropen(mktabs(fp, s.User, client))
 			default:
-				f, err := os.OpenFile(fp, os.O_RDWR, 0644)
 				if stat.IsDir() {
-					t.Ropen(f.Readdir(0))
-				} else {
-					t.Ropen(f, err)
+					t.Ropen(ioutil.ReadDir(fp))
+					continue
 				}
+				t.Ropen(os.OpenFile(fp, t.Flag, stat.Mode()))
 			}
-		case styx.Tstat:
-			t.Rstat(stat, nil)
 		case styx.Tutimes:
 			switch t.Path() {
 			case "/", "/event", "/ctrl", "/tabs":
@@ -208,7 +207,7 @@ func (srv server) Serve9P(s *styx.Session) {
 		// When clients are done with a notification, they delete it. Allow this
 		case styx.Tremove:
 			switch t.Path() {
-			case "/notify":
+			case "/notification", "/notify":
 				t.Rremove(os.Remove(fp))
 			default:
 				t.Rerror("%s", "permission denied")
