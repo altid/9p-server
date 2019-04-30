@@ -61,7 +61,7 @@ func dispatch(srv map[string]*server, input chan string) {
 			handleTabs(srv)
 		case "/status":
 			handleStatus(srv[current])
-		case "/sidebar":
+		case "/aside":
 			handleSide(srv[current])
 		case "/title":
 			handleTitle(srv[current])

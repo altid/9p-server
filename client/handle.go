@@ -111,7 +111,7 @@ func handleTitle(srv *server) error {
 }
 
 func handleSide(srv *server) error {
-	data, err := readFile(srv, "sidebar", 0)
+	data, err := readFile(srv, "aside", 0)
 	if err != nil {
 		return err
 	}

@@ -183,6 +183,8 @@ func (srv server) Serve9P(s *styx.Session) {
 				t.Ropen(mkctl(fp, s.User, client))
 			case "/tabs":
 				t.Ropen(mktabs(fp, s.User, client))
+			case "/input":
+				t.Ropen(os.OpenFile(fp, os.O_RDWR, 0755))
 			default:
 				if stat.IsDir() {
 					t.Ropen(ioutil.ReadDir(fp))
